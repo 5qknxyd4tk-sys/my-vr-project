@@ -1,23 +1,56 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="utf-8">
+    <title>Revit VR Viewer - Sprint Mode</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
   </head>
-  <body style="margin: 0; overflow: hidden;">
+  <body>
     <a-scene xr-mode-ui="enabled: true">
+      
       <a-assets>
         <a-asset-item id="revit-model" src="model.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity id="rig" movement-controls="fly: false; speed: 0.2;">
-        <a-entity camera position="0 1.6 0" look-controls></a-entity>
+      <a-entity id="rig" 
+                movement-controls="speed: 0.2; fly: false;" 
+                position="0 0 0">
+        <a-entity camera 
+                  position="0 1.6 0" 
+                  look-controls="pointerLockEnabled: true">
+        </a-entity>
         <a-entity oculus-touch-controls="hand: left"></a-entity>
         <a-entity oculus-touch-controls="hand: right"></a-entity>
       </a-entity>
 
       <a-entity gltf-model="#revit-model" position="0 0 0"></a-entity>
-      <a-sky color="#87CEEB"></a-sky> <a-light type="ambient" intensity="0.8"></a-light>
+
+      <a-sky color="#87CEEB"></a-sky>
+      <a-light type="ambient" intensity="0.8"></a-light>
+      <a-light type="directional" position="1 2 1" intensity="0.5"></a-light>
+
     </a-scene>
+
+    <script>
+      window.addEventListener('keydown', function (e) {
+        if (e.shiftKey) {
+          // Shift를 누르면 속도를 0.8로 업! (기본 0.2)
+          document.querySelector('#rig').setAttribute('movement-controls', 'speed', 0.8);
+        }
+      });
+
+      window.addEventListener('keyup', function (e) {
+        if (e.key === 'Shift') {
+          // Shift를 떼면 다시 원래 속도(0.2)로
+          document.querySelector('#rig').setAttribute('movement-controls', 'speed', 0.2);
+        }
+      });
+
+      // 마우스 클릭 시 화면 고정 (PC 이동을 위해 필수)
+      document.querySelector('canvas').addEventListener('click', function() {
+        this.requestPointerLock();
+      });
+    </script>
   </body>
 </html>
