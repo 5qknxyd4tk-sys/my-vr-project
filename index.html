@@ -163,12 +163,13 @@
             <button id="cam-iso"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l10 5-10 5-10-5z"/><path d="M2 13l10 5 10-5"/><path d="M2 8l10 5 10-5"/></svg>ISO</button>
             <div class="divider"></div>
             <button id="btn-reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>RESET</button>
+            <!-- 자이로 및 VR 모드 버튼이 이쪽으로 정렬됨 -->
+            <button id="cam-gyro" style="background:#1d1d1f; color:#fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>GYRO</button>
             <button id="btn-vr" style="background:#1d1d1f; color:#fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/></svg>VR MODE</button>
             <button id="btn-capture" style="color:var(--brand-color)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>CAPTURE</button>
         </div>
         
         <div id="sidebar-left">
-            <!-- Environment Panel -->
             <div id="env-panel" class="panel">
                 <div class="panel-header">Environment <button class="toggle-btn" onclick="this.closest('.panel').classList.toggle('minimized')">－</button></div>
                 <div class="panel-content">
@@ -194,7 +195,6 @@
                 </div>
             </div>
             
-            <!-- Section Analysis Panel -->
             <div id="cut-panel" class="panel">
                 <div class="panel-header">Section Analysis <button class="toggle-btn" onclick="this.closest('.panel').classList.toggle('minimized')">－</button></div>
                 <div class="panel-content">
@@ -217,7 +217,6 @@
                 </div>
             </div>
 
-            <!-- AI Panel -->
             <div id="ai-panel" class="panel">
                 <div class="panel-header">✨ AI Insights <button class="toggle-btn" onclick="this.closest('.panel').classList.toggle('minimized')">－</button></div>
                 <div class="panel-content">
@@ -259,6 +258,9 @@
         let controllerR, vrRay, teleportTarget;
         const cameraRig = new THREE.Group();
         const GITHUB_SAMPLE_URL = './model.glb';
+
+        let isGyroEnabled = false;
+        let deviceRotation = { alpha: 0, beta: 0, gamma: 0 };
 
         init();
 
@@ -360,7 +362,6 @@
                 loadingStatus.style.display = 'block';
                 loadingStatus.innerText = "모델 불러오는 중...";
             }
-
             const loader = new GLTFLoader();
             loader.load(url, (gltf) => {
                 document.getElementById('landing-page').style.display = 'none';
@@ -377,20 +378,16 @@
         function onModelLoaded(gltf) {
             if(model) modelGroup.remove(model);
             model = gltf.scene;
-
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
             modelMaxDim = Math.max(size.x, size.y, size.z) || 10;
             model.position.sub(center);
-
             model.traverse(c => {
                 if(c.isMesh) {
                     c.castShadow = true; c.receiveShadow = true;
                     originalMaterials.set(c.uuid, c.material);
                     applyClipping(c.material);
-                    
-                    // 외곽선 생성
                     const edges = new THREE.EdgesGeometry(c.geometry, 35);
                     const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 }));
                     line.material.clippingPlanes = [clipPlane];
@@ -400,93 +397,93 @@
                 }
             });
             modelGroup.add(model);
-
             const slider = document.getElementById('cut-slider');
             if(slider) {
-                slider.min = -modelMaxDim;
-                slider.max = modelMaxDim;
-                slider.value = modelMaxDim;
+                slider.min = -modelMaxDim; slider.max = modelMaxDim; slider.value = modelMaxDim;
                 updateClipPlane(slider.value);
             }
-
             const camDist = modelMaxDim * 1.5;
             perspCamera.position.set(camDist, camDist, camDist);
             oControls.target.set(0,0,0);
             oControls.update();
-            
             showToast("Project Loaded Successfully");
         }
 
         function switchCam(mode) {
             state.cam = mode;
-            ['cam-fly','cam-walk','cam-iso'].forEach(id => { 
+            isGyroEnabled = (mode === 'gyro');
+            ['cam-fly','cam-walk','cam-iso','cam-gyro'].forEach(id => { 
                 const el = document.getElementById(id); 
                 if(el) el.classList.toggle('active', id === `cam-${mode}`); 
             });
-            
             if(mode === 'iso') { 
                 const frustumSize = modelMaxDim * 2;
                 const aspect = window.innerWidth / window.innerHeight;
-                orthoCamera.left = -frustumSize * aspect / 2;
-                orthoCamera.right = frustumSize * aspect / 2;
-                orthoCamera.top = frustumSize / 2;
-                orthoCamera.bottom = -frustumSize / 2;
+                orthoCamera.left = -frustumSize * aspect / 2; orthoCamera.right = frustumSize * aspect / 2;
+                orthoCamera.top = frustumSize / 2; orthoCamera.bottom = -frustumSize / 2;
                 orthoCamera.position.set(modelMaxDim, modelMaxDim, modelMaxDim);
-                orthoCamera.lookAt(0,0,0);
-                orthoCamera.updateProjectionMatrix();
-
-                activeCamera = orthoCamera; 
-                oControls.object = orthoCamera; 
-                oControls.enabled = true; 
+                orthoCamera.lookAt(0,0,0); orthoCamera.updateProjectionMatrix();
+                activeCamera = orthoCamera; oControls.object = orthoCamera; oControls.enabled = true; 
                 if(document.pointerLockElement) document.exitPointerLock();
+            } else if (mode === 'gyro') {
+                activeCamera = perspCamera; oControls.enabled = false;
+                requestGyroPermission();
             } else { 
-                activeCamera = perspCamera; 
-                oControls.object = perspCamera; 
-                oControls.enabled = isMobile;
+                activeCamera = perspCamera; oControls.object = perspCamera; oControls.enabled = isMobile;
             }
+        }
+
+        async function requestGyroPermission() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission === 'granted') {
+                        window.addEventListener('deviceorientation', onDeviceOrientation);
+                    } else {
+                        showToast("자이로 권한이 거부되었습니다.");
+                        switchCam('fly');
+                    }
+                } catch (e) { showToast("자이로 권한 요청 중 오류 발생"); }
+            } else { window.addEventListener('deviceorientation', onDeviceOrientation); }
+        }
+
+        function onDeviceOrientation(event) {
+            deviceRotation.alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0;
+            deviceRotation.beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;
+            deviceRotation.gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0;
         }
 
         function setupUI() {
             document.getElementById('btn-load-sample').addEventListener('click', () => loadGLB(GITHUB_SAMPLE_URL));
-            
             const fileInput = document.getElementById('file-input');
             document.getElementById('btn-trigger-file').addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', (e) => {
                 if(e.target.files && e.target.files[0]) loadGLB(URL.createObjectURL(e.target.files[0]));
             });
-
             document.getElementById('btn-home').addEventListener('click', () => location.reload());
             document.getElementById('mode-render').addEventListener('click', () => toggleMode('render'));
             document.getElementById('mode-white').addEventListener('click', () => toggleMode('white'));
             document.getElementById('cam-fly').addEventListener('click', () => switchCam('fly'));
             document.getElementById('cam-walk').addEventListener('click', () => switchCam('walk'));
             document.getElementById('cam-iso').addEventListener('click', () => switchCam('iso'));
-            
+            document.getElementById('cam-gyro').addEventListener('click', () => switchCam('gyro'));
             document.getElementById('btn-reset').addEventListener('click', () => {
-                cameraRig.position.set(0, 0, 0);
+                cameraRig.position.set(0, 0, 0); cameraRig.rotation.set(0,0,0);
                 perspCamera.position.set(modelMaxDim*1.5, modelMaxDim*1.5, modelMaxDim*1.5);
-                oControls.target.set(0,0,0);
-                oControls.update();
+                perspCamera.rotation.set(0, 0, 0); oControls.target.set(0,0,0); oControls.update();
             });
-
             document.getElementById('btn-vr').addEventListener('click', () => {
                 const hiddenBtn = document.getElementById('VRButton');
                 if(hiddenBtn) hiddenBtn.click();
             });
-
             document.getElementById('btn-capture').addEventListener('click', () => {
                 renderer.render(scene, activeCamera);
                 const link = document.createElement('a'); 
-                link.download = 'kil_capture.png';
-                link.href = renderer.domElement.toDataURL('image/png'); 
+                link.download = 'kil_capture.png'; link.href = renderer.domElement.toDataURL('image/png'); 
                 link.click();
             });
-
             const bindClick = (id, fn) => { const el = document.getElementById(id); if(el) el.addEventListener('click', fn); };
-            bindClick('bg-sky', () => setBG('sky')); 
-            bindClick('bg-solid', () => setBG('solid')); 
-            bindClick('bg-hdr', () => setBG('hdr'));
-            
+            bindClick('bg-sky', () => setBG('sky')); bindClick('bg-solid', () => setBG('solid')); bindClick('bg-hdr', () => setBG('hdr'));
             const hdrInput = document.getElementById('hdr-input');
             document.getElementById('btn-upload-hdr-manual').addEventListener('click', () => hdrInput.click());
             hdrInput.addEventListener('change', (e) => {
@@ -494,71 +491,69 @@
                     const url = URL.createObjectURL(e.target.files[0]);
                     new RGBELoader().load(url, (t) => {
                         t.mapping = THREE.EquirectangularReflectionMapping;
-                        scene.background = t; scene.environment = t;
-                        showToast("HDR 적용됨");
+                        scene.background = t; scene.environment = t; showToast("HDR 적용됨");
                     });
                 }
             });
-
-            // 배경색 피커 이벤트
             document.getElementById('bg-color-val').addEventListener('input', (e) => {
-                bgColor.set(e.target.value);
-                if(state.bg === 'solid') {
-                    scene.background = bgColor;
-                }
+                bgColor.set(e.target.value); if(state.bg === 'solid') scene.background = bgColor;
             });
-
-            // 외곽선 두께 스크롤러 복구
             document.getElementById('toon-weight').addEventListener('input', (e) => {
                 const weight = parseFloat(e.target.value);
-                if(model) {
-                    model.traverse(c => {
-                        if(c.userData.isEdge) {
-                            c.visible = weight > 0;
-                            c.material.opacity = Math.min(weight / 2, 1);
-                            c.material.linewidth = weight; // 일부 브라우저 지원
-                        }
-                    });
-                }
+                if(model) model.traverse(c => { if(c.userData.isEdge) { c.visible = weight > 0; c.material.opacity = Math.min(weight / 2, 1); } });
             });
-
             document.getElementById('cut-toggle').addEventListener('click', (e) => { 
                 state.cutEnabled = !state.cutEnabled; renderer.localClippingEnabled = state.cutEnabled; 
                 e.target.classList.toggle('active'); e.target.innerText = state.cutEnabled ? 'ON' : 'OFF'; 
                 e.target.style.background = state.cutEnabled ? 'var(--brand-color)' : '#86868b';
             });
-            
             const setAxis = (ax) => { 
                 clipAxis = ax; 
-                ['axis-x', 'axis-y', 'axis-z'].forEach(id => {
-                    document.getElementById(id).classList.toggle('active', id === `axis-${ax}`);
-                });
+                ['axis-x', 'axis-y', 'axis-z'].forEach(id => document.getElementById(id).classList.toggle('active', id === `axis-${ax}`));
                 updateClipPlane(document.getElementById('cut-slider').value); 
             };
             bindClick('axis-x', ()=>setAxis('x')); bindClick('axis-y', ()=>setAxis('y')); bindClick('axis-z', ()=>setAxis('z'));
             bindClick('axis-flip', () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); });
             document.getElementById('cut-slider').addEventListener('input', (e)=>updateClipPlane(e.target.value));
-
             document.getElementById('btn-ai-analyze').addEventListener('click', getAIAnalysis);
         }
 
+        // VR 조작 핸들러 개선
         function handleVRController() {
             const session = renderer.xr.getSession();
             if (!session) return;
             for (const source of session.inputSources) {
-                if (source.handedness === 'left') continue;
+                if (source.handedness === 'left') continue; // 왼쪽 무시
                 if (source.handedness === 'right' && source.gamepad) {
                     const gamepad = source.gamepad;
                     const axes = gamepad.axes; 
                     const buttons = gamepad.buttons; 
-                    const speed = 0.05;
+
+                    // 1. 조이스틱 조작
+                    const moveSpeed = 0.05;
+                    const rotateSpeed = 0.03;
+                    
                     const lookDir = new THREE.Vector3();
                     perspCamera.getWorldDirection(lookDir);
                     lookDir.y = 0; lookDir.normalize();
-                    const sideDir = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), lookDir).normalize();
-                    if (Math.abs(axes[3]) > 0.1) cameraRig.position.addScaledVector(lookDir, -axes[3] * speed);
-                    if (Math.abs(axes[2]) > 0.1) cameraRig.position.addScaledVector(sideDir, axes[2] * speed);
-                    if (buttons[5].pressed) cameraRig.position.set(0, 0, 0);
+
+                    // 조이스틱 상/하 (axes[3]): 앞뒤 이동
+                    if (Math.abs(axes[3]) > 0.1) {
+                        cameraRig.position.addScaledVector(lookDir, -axes[3] * moveSpeed);
+                    }
+                    
+                    // [수정] 조이스틱 좌/우 (axes[2]): 시선 회전 (Snap/Smooth Rotation)
+                    if (Math.abs(axes[2]) > 0.1) {
+                        cameraRig.rotation.y -= axes[2] * rotateSpeed;
+                    }
+
+                    // 2. B 버튼 (카메라 리셋)
+                    if (buttons[5].pressed) {
+                        cameraRig.position.set(0, 0, 0);
+                        cameraRig.rotation.set(0, 0, 0);
+                    }
+
+                    // 3. 트리거 순간이동
                     const triggerPressed = buttons[0].pressed;
                     if (triggerPressed) {
                         vrRay.visible = true;
@@ -576,7 +571,10 @@
                             vrRay.scale.z = 10;
                         }
                     } else {
-                        if (vrRay.visible && teleportTarget.visible) cameraRig.position.copy(teleportTarget.position);
+                        if (vrRay.visible && teleportTarget.visible) {
+                            // 순간이동 시 Y값 보정 (리그 위치 이동)
+                            cameraRig.position.copy(teleportTarget.position);
+                        }
                         vrRay.visible = false; teleportTarget.visible = false;
                     }
                 }
@@ -588,7 +586,10 @@
                 if (renderer.xr.isPresenting) {
                     handleVRController();
                 } else {
-                    if (state.cam === 'iso' || isMobile || !document.pointerLockElement) {
+                    if (isGyroEnabled && isMobile) {
+                        const euler = new THREE.Euler(deviceRotation.beta + Math.PI/2, deviceRotation.alpha, -deviceRotation.gamma, 'YXZ');
+                        perspCamera.quaternion.setFromEuler(euler);
+                    } else if (state.cam === 'iso' || isMobile || !document.pointerLockElement) {
                         oControls.update();
                     }
                     if (document.pointerLockElement) {
@@ -600,11 +601,10 @@
                         const moveVec = new THREE.Vector3();
                         if(move.f) moveVec.addScaledVector(forward, speed*delta); if(move.b) moveVec.addScaledVector(forward, -speed*delta);
                         if(move.l) moveVec.addScaledVector(right, -speed*delta); if(move.r) moveVec.addScaledVector(right, speed*delta);
-                        
                         if(state.cam === 'fly') {
                             if(move.u) moveVec.y += speed*delta; if(move.d) moveVec.y -= speed*delta;
                             perspCamera.position.add(moveVec);
-                        } else {
+                        } else if (state.cam === 'walk') {
                             perspCamera.position.x += moveVec.x; perspCamera.position.z += moveVec.z;
                             velocity.y -= 19.6 * delta; perspCamera.position.y += velocity.y * delta;
                             raycaster.set(new THREE.Vector3(perspCamera.position.x, perspCamera.position.y, perspCamera.position.z), new THREE.Vector3(0,-1,0));
@@ -625,9 +625,7 @@
 
         function applyClipping(m) { if(Array.isArray(m)) m.forEach(x => x.clippingPlanes = [clipPlane]); else m.clippingPlanes = [clipPlane]; }
         function updateClipPlane(val) { 
-            const v = parseFloat(val); 
-            clipPlane.constant = clipNegate ? v : -v; 
-            clipPlane.normal.set(0,0,0); 
+            const v = parseFloat(val); clipPlane.constant = clipNegate ? v : -v; clipPlane.normal.set(0,0,0); 
             if(clipAxis==='x') clipPlane.normal.x = clipNegate ? -1 : 1; 
             if(clipAxis==='y') clipPlane.normal.y = clipNegate ? -1 : 1; 
             if(clipAxis==='z') clipPlane.normal.z = clipNegate ? -1 : 1; 
@@ -643,7 +641,17 @@
             else if(type==='solid'){scene.background=bgColor; scene.environment=null;} 
             else {scene.background=envTexture; scene.environment=envTexture;} 
         }
-        function toggleMode(mode) { state.mode = mode; if(model) model.traverse(c=>{ if(c.isMesh) { c.material = mode==='render' ? originalMaterials.get(c.uuid) : new THREE.MeshBasicMaterial({color:0xffffff, side:2}); applyClipping(c.material); } }); }
+        function toggleMode(mode) { 
+            state.mode = mode; 
+            if(model) model.traverse(c=>{ 
+                if(c.isMesh) { 
+                    c.material = mode==='render' ? originalMaterials.get(c.uuid) : new THREE.MeshBasicMaterial({color:0xffffff, side:2}); 
+                    applyClipping(c.material); 
+                } 
+            }); 
+            document.getElementById('mode-render').classList.toggle('active', mode==='render');
+            document.getElementById('mode-white').classList.toggle('active', mode==='white');
+        }
         
         function setupEvents() {
             window.addEventListener('resize', () => { 
@@ -663,7 +671,7 @@
                 } 
             });
             document.addEventListener('mousedown', (e) => { 
-                if(!isMobile && document.getElementById('landing-page').style.display === 'none' && !e.target.closest('button, .panel, input') && state.cam !== 'iso') { 
+                if(!isMobile && document.getElementById('landing-page').style.display === 'none' && !e.target.closest('button, .panel, input') && state.cam !== 'iso' && state.cam !== 'gyro') { 
                     pControls.lock(); 
                 } 
             });
@@ -672,7 +680,16 @@
         function makePanelsDraggable() { document.querySelectorAll('.panel').forEach(p => { const h=p.querySelector('.panel-header'); let isD=false, sx, sy, il, it; h.onmousedown=(e)=>{ isD=true; sx=e.clientX; sy=e.clientY; il=p.offsetLeft; it=p.offsetTop; document.onmousemove=(e)=>{ if(isD) { p.style.left=(il+e.clientX-sx)+'px'; p.style.top=(it+e.clientY-sy)+'px'; } }; document.onmouseup=()=>{ isD=false; document.onmousemove=null; }; }; }); }
         function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.style.opacity=1; setTimeout(()=>t.style.opacity=0, 2000); }
         
-        async function getAIAnalysis() { if(!model) return; document.getElementById('btn-ai-analyze').innerText="분석 중..."; try { renderer.render(scene, activeCamera); const b64 = renderer.domElement.toDataURL('image/png').split(',')[1]; const p = "건축 전문가로서 이 장면을 분석해줘. 한국어 2문장."; const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:p},{inlineData:{mimeType:"image/png", data:b64}}]}]})}).then(r=>r.json()); document.getElementById('ai-response').innerText = res?.candidates?.[0]?.content?.parts?.[0]?.text || "분석 결과 없음"; } catch(e){ showToast("AI 분석 오류"); } finally { document.getElementById('btn-ai-analyze').innerText="ANALYZE VIEW"; } }
+        async function getAIAnalysis() { 
+            if(!model) return; document.getElementById('btn-ai-analyze').innerText="분석 중..."; 
+            try { 
+                renderer.render(scene, activeCamera); 
+                const b64 = renderer.domElement.toDataURL('image/png').split(',')[1]; 
+                const p = "건축 전문가로서 이 장면을 분석해줘. 한국어 2문장."; 
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:p},{inlineData:{mimeType:"image/png", data:b64}}]}]})}).then(r=>r.json()); 
+                document.getElementById('ai-response').innerText = res?.candidates?.[0]?.content?.parts?.[0]?.text || "분석 결과 없음"; 
+            } catch(e){ showToast("AI 분석 오류"); } finally { document.getElementById('btn-ai-analyze').innerText="ANALYZE VIEW"; } 
+        }
     </script>
 </body>
 </html>
