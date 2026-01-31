@@ -3,104 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ARCHI-VIEWER: GITHUB EDITION</title>
+    <title>ARCHI-VIEWER: V4</title>
     <style>
-        /* --- 기본 스타일 (Light Theme) --- */
-        body { margin: 0; overflow: hidden; background-color: #f5f5f5; font-family: 'Segoe UI', sans-serif; color: #333; user-select: none; -webkit-user-select: none; }
+        /* --- 기본 스타일 --- */
+        body { margin: 0; overflow: hidden; background-color: #111; font-family: 'Segoe UI', sans-serif; color: white; user-select: none; -webkit-user-select: none; }
         
         /* 로딩 화면 */
         #landing-page {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: linear-gradient(135deg, #ffffff, #e0e0e0); z-index: 200; transition: opacity 0.5s;
+            background: linear-gradient(135deg, #1a1a1a, #000); z-index: 200;
         }
         .upload-box {
-            border: 2px dashed #ccc; padding: 50px; border-radius: 16px; text-align: center;
-            background: rgba(255,255,255,0.9); cursor: pointer; transition: 0.3s;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            border: 1px dashed #666; padding: 40px; border-radius: 12px; text-align: center;
+            background: rgba(255,255,255,0.02); cursor: pointer; transition: 0.3s;
         }
-        .upload-box:hover { border-color: #007bff; background: white; transform: translateY(-3px); }
         
-        /* 로딩 스피너 */
-        .spinner {
-            border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%;
-            width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* 패널 스타일 */
+        /* --- 패널 스타일 (좌측 상단 정렬) --- */
         .panel {
-            position: absolute; left: 20px; width: 240px;
-            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px);
-            border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-            border: 1px solid rgba(255,255,255,0.6);
+            position: absolute; left: 20px; width: 220px;
+            background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(10px);
+            border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
             display: flex; flex-direction: column; gap: 10px; transition: opacity 0.3s;
         }
+        
+        /* 패널 헤더 (드래그 핸들) */
         .panel-header {
-            padding: 12px 15px; background: rgba(0,0,0,0.03); cursor: move;
+            padding: 10px; background: rgba(255,255,255,0.05); cursor: move;
             display: flex; justify-content: space-between; align-items: center;
-            font-weight: 700; font-size: 12px; color: #444; border-bottom: 1px solid rgba(0,0,0,0.05);
-            border-radius: 12px 12px 0 0;
+            font-weight: bold; font-size: 12px; color: #ddd; border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px 8px 0 0;
         }
         .panel-content { padding: 15px; display: flex; flex-direction: column; gap: 12px; }
         .panel.minimized .panel-content { display: none; }
         
-        /* 위치 */
-        #top-bar { top: 20px; left: 20px; width: auto; max-width: 90%; z-index: 50; padding: 8px; border-radius: 12px; }
+        /* 초기 위치 설정 (겹치지 않게) */
+        #top-bar { top: 20px; left: 20px; width: auto; max-width: 90%; z-index: 50; }
         #env-panel { top: 80px; z-index: 40; }
-        #cut-panel { top: 480px; z-index: 30; }
+        #cut-panel { top: 400px; z-index: 30; }
 
-        /* 버튼 & 입력 */
+        /* 공통 UI 요소 */
         button {
-            background: #fff; border: 1px solid #ddd; color: #555; padding: 8px 12px; border-radius: 6px;
-            cursor: pointer; font-size: 12px; font-weight: 600; flex-shrink: 0; transition: 0.2s;
+            background: #333; border: none; color: #ccc; padding: 6px 10px; border-radius: 4px;
+            cursor: pointer; font-size: 11px; font-weight: 600; flex-shrink: 0; transition: 0.2s;
         }
-        button:hover { background: #f8f9fa; border-color: #ccc; color: #000; }
-        button.active { background: #007bff; color: #fff; border-color: #007bff; }
-        button.toggle-btn { width: 24px; border:none; background:transparent; }
+        button:hover { background: #555; color: white; }
+        button.active { background: #00d2ff; color: #000; }
+        button.toggle-btn { width: 20px; height: 20px; padding: 0; line-height: 1; background:none; }
 
-        input[type=range] { width: 100%; height: 5px; accent-color: #007bff; cursor: pointer; }
-        input[type=color] { border: none; width: 100%; height: 28px; padding: 0; cursor: pointer; background: none; }
-        .row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; gap: 8px; }
-        .label { min-width: 70px; font-weight: 500; }
+        input[type=range] { width: 100%; height: 4px; accent-color: #00d2ff; cursor: pointer; }
+        input[type=color] { border: none; width: 100%; height: 25px; background: none; padding: 0; }
+        .row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #aaa; gap: 8px; }
+        .label { min-width: 60px; text-align: left; }
 
-        /* 상단 바 */
-        #top-bar { position: absolute; display: flex; gap: 6px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); overflow-x: auto; white-space: nowrap; border: 1px solid rgba(255,255,255,0.6); }
+        /* 상단 툴바 */
+        #top-bar { 
+            position: absolute; display: flex; gap: 5px; padding: 8px; 
+            background: rgba(20,20,20,0.8); border-radius: 8px; backdrop-filter: blur(5px);
+            overflow-x: auto; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1);
+        }
         #top-bar::-webkit-scrollbar { display: none; }
 
-        /* 크로스헤어 & 모바일 가이드 */
+        /* 크로스헤어 */
         #crosshair {
-            position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
-            background: #007bff; border-radius: 50%; transform: translate(-50%, -50%);
-            pointer-events: none; display: none; z-index: 10;
-        }
-        #mobile-guide {
-            position: absolute; bottom: 80px; width: 100%; text-align: center;
-            font-size: 12px; color: #555; pointer-events: none; font-weight: 600;
-            text-shadow: 0 1px 10px white; display: none;
-            background: rgba(255,255,255,0.5); padding: 5px 0; backdrop-filter: blur(2px);
-        }
-        #toast {
-            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
-            background: rgba(33,33,33,0.9); color: white; padding: 10px 20px; border-radius: 30px;
-            opacity: 0; transition: opacity 0.5s; font-size: 13px; pointer-events: none; z-index: 100;
+            position: absolute; top: 50%; left: 50%; width: 4px; height: 4px;
+            background: #00d2ff; border-radius: 50%; transform: translate(-50%, -50%);
+            pointer-events: none; display: none; box-shadow: 0 0 5px #00d2ff; z-index: 10;
         }
 
+        /* 하단 안내 메시지 (모바일용) */
+        #mobile-guide {
+            position: absolute; bottom: 30px; width: 100%; text-align: center;
+            font-size: 12px; color: rgba(255,255,255,0.5); pointer-events: none;
+            text-shadow: 0 1px 2px black; display: none;
+        }
+
+        #toast {
+            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); padding: 8px 16px; border-radius: 20px;
+            opacity: 0; transition: opacity 0.5s; font-size: 13px; pointer-events: none; border: 1px solid #333; z-index: 100;
+        }
+
+        /* 반응형: 모바일에서 패널 기본 숨김 (버튼으로 토글) */
         @media (max-width: 768px) {
             .panel { display: none; }
-            #top-bar { left: 50%; transform: translateX(-50%); width: 94%; justify-content: center; top: 15px; }
-            #mobile-menu-btn { display: flex; align-items: center; justify-content: center; position: absolute; top: 75px; right: 20px; z-index: 60; width:44px; height:44px; border-radius:50%; font-size:20px; border:1px solid #ddd; background:white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); color:#333; }
+            #top-bar { left: 50%; transform: translateX(-50%); width: 95%; justify-content: center; }
+            #mobile-menu-btn { display: block; position: absolute; top: 70px; right: 20px; z-index: 60; width:40px; height:40px; border-radius:50%; font-size:18px; border:1px solid #555; background:rgba(0,0,0,0.8); }
             #mobile-guide { display: block; }
         }
         #mobile-menu-btn { display: none; }
     </style>
-    
-    <script>
-        window.onerror = function(message, source, lineno, colno, error) {
-            alert("시스템 오류 발생: " + message);
-        };
-    </script>
-
     <script type="importmap">
         {
             "imports": {
@@ -113,18 +106,12 @@
 <body>
 
     <div id="landing-page">
-        <div id="auto-loader" style="display:none; flex-direction:column; align-items:center;">
-            <div class="spinner"></div>
-            <p style="color:#666; font-weight:bold;">Auto-loading Model...</p>
-        </div>
-
-        <div id="upload-ui" class="upload-box">
-            <h2 style="margin:0; font-weight:600;">ARCHI-VIEWER</h2>
-            <p style="font-size:13px; margin-bottom:20px;">Light Theme & GitHub Ready</p>
-            <button onclick="document.getElementById('file-input').click()" style="font-size:14px; padding:10px 20px; background:#007bff; color:white;">📂 Select GLB File</button>
+        <div class="upload-box" onclick="document.getElementById('file-input').click()">
+            <h2 style="margin:0; font-weight:300;">ARCHI-VIEWER</h2>
+            <p style="font-size:12px; color:#888;">Gyro & Drag Interface</p>
             <input type="file" id="file-input" accept=".glb,.gltf" style="display:none;">
         </div>
-        <p id="status-log" style="margin-top:20px; font-size:11px; color:#999;">Waiting for input...</p>
+        <div id="loader" style="display:none; margin-top:20px; color:#00d2ff;">Loading...</div>
     </div>
 
     <div id="ui-layer" style="display:none;">
@@ -132,36 +119,25 @@
         <button id="mobile-menu-btn" onclick="toggleMobilePanels()">⚙</button>
 
         <div id="top-bar">
-            <div class="panel-header" style="display:none;">Tools</div>
-            <button id="mode-render" class="active">RENDER</button>
+            <div class="panel-header" style="display:none;">Tools</div> <button id="mode-render" class="active">RENDER</button>
             <button id="mode-white">WHITE</button>
-            <span style="width:1px; height:18px; background:#ddd; margin:0 6px;"></span>
+            <span style="width:1px; height:15px; background:#444; margin:0 5px;"></span>
             <button id="cam-fly" class="active">FLY</button>
             <button id="cam-walk">WALK</button>
             <button id="cam-iso">ISO</button>
-            <span style="width:1px; height:18px; background:#ddd; margin:0 6px;"></span>
-            <button id="btn-gyro" style="color:#007bff;">GYRO</button> 
+            <span style="width:1px; height:15px; background:#444; margin:0 5px;"></span>
+            <button id="btn-gyro" style="color:#00d2ff;">GYRO</button> 
             <button id="btn-share">LINK</button>
         </div>
 
         <div id="env-panel" class="panel">
-            <div class="panel-header">ENVIRONMENT <button class="toggle-btn">－</button></div>
+            <div class="panel-header">
+                ENVIRONMENT
+                <button class="toggle-btn">－</button>
+            </div>
             <div class="panel-content">
-                <div id="iso-options" style="display:none; flex-direction:column; gap:10px; border-bottom:1px solid #eee; padding-bottom:10px;">
-                    <div class="row">
-                        <span class="label" style="color:#007bff;">ISO View</span>
-                        <div style="display:flex; gap:5px; width:100%;">
-                            <button id="iso-parallel" class="active" style="flex:1;">PARALLEL</button>
-                            <button id="iso-persp" style="flex:1;">PERSP</button>
-                        </div>
-                    </div>
-                    <div id="lens-row" class="row" style="display:none;">
-                        <span class="label">Lens</span>
-                        <input type="range" id="cam-fov" min="15" max="90" value="50" style="flex:1;">
-                    </div>
-                </div>
                 <div class="row">
-                    <span class="label">BG Style</span>
+                    <span class="label">BG</span>
                     <div style="display:flex; gap:5px; width:100%;">
                         <button id="bg-hdri" class="active" style="flex:1;">SKY</button>
                         <button id="bg-color" style="flex:1;">COLOR</button>
@@ -169,44 +145,42 @@
                 </div>
                 <div class="row" id="bg-color-picker-row" style="display:none;">
                     <span class="label">Color</span>
-                    <input type="color" id="bg-color-val" value="#f5f5f5">
+                    <input type="color" id="bg-color-val" value="#333333">
                 </div>
                 <div class="row">
-                    <span class="label">Sun Light</span>
+                    <span class="label">Shadow</span>
                     <button id="shadow-toggle" class="active" style="width:40px;">ON</button>
-                    <input type="range" id="sun-intensity" min="0" max="5" step="0.1" value="2.5">
                 </div>
                 <div class="row">
-                    <span class="label">Sun Angle</span>
+                    <span class="label">Sun</span>
+                    <input type="range" id="sun-intensity" min="0" max="5" step="0.1" value="2.0">
+                </div>
+                <div class="row">
+                    <span class="label">Angle</span>
                     <input type="range" id="sun-angle" min="0" max="360" value="45">
                 </div>
-                <div class="row" style="border-top:1px solid #eee; padding-top:10px;">
+                <div class="row" style="border-top:1px solid #444; padding-top:5px;">
                      <button onclick="document.getElementById('hdr-input').click()" style="width:100%;">Upload HDRI</button>
                      <input type="file" id="hdr-input" accept=".hdr,.exr" style="display:none;">
-                </div>
-                <div class="row" style="margin-top:5px;">
-                    <span class="label" style="color:#007bff;">AR Scale</span>
-                    <select id="ar-scale" style="background:#fff; border:1px solid #ddd; padding:2px; width:100%;">
-                        <option value="1">1:1 (Real)</option>
-                        <option value="0.1">1:10</option>
-                        <option value="0.01">1:100</option>
-                    </select>
                 </div>
             </div>
         </div>
 
         <div id="cut-panel" class="panel">
-            <div class="panel-header">SECTION CUT <button class="toggle-btn">－</button></div>
+            <div class="panel-header">
+                SECTION CUT
+                <button class="toggle-btn">－</button>
+            </div>
             <div class="panel-content">
                 <div class="row">
                     <span class="label">Active</span>
                     <button id="cut-toggle" class="active" style="width:50px;">ON</button>
                 </div>
-                <div class="row" style="justify-content:center; gap:5px;">
+                <div class="row" style="justify-content: center; gap:5px;">
                     <button id="axis-x" class="axis-btn">X</button>
                     <button id="axis-y" class="axis-btn active">Y</button>
                     <button id="axis-z" class="axis-btn">Z</button>
-                    <button id="axis-flip" style="color:#007bff;">FLIP</button>
+                    <button id="axis-flip" style="color:#00d2ff;">FLIP</button>
                 </div>
                 <div class="row">
                     <span class="label">Level</span>
@@ -214,12 +188,12 @@
                 </div>
                 <div class="row">
                     <span class="label">Color</span>
-                    <input type="color" id="cut-color" value="#ff0000">
+                    <input type="color" id="cut-color" value="#ff0000"> 
                 </div>
             </div>
         </div>
         
-        <div id="mobile-guide">Touch & Hold: Move | Drag: Look</div>
+        <div id="mobile-guide">Touch & Hold to Move | Drag to Look</div>
         <div id="toast">Message</div>
     </div>
 
@@ -231,38 +205,39 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { DeviceOrientationControls } from 'three/addons/controls/DeviceOrientationControls.js';
         import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-        import { ARButton } from 'three/addons/webxr/ARButton.js';
 
+        // --- 전역 변수 ---
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         
-        let scene, renderer;
-        let perspCamera, orthoCamera, activeCamera; 
-        let pControls, oControls, gControls;
-        let model = null, modelGroup = new THREE.Group();
+        let scene, renderer, activeCamera;
+        let perspCamera, orthoCamera;
+        let pControls, oControls, gControls; // PointerLock, Orbit, Gyro
+        let model = null;
         let originalMaterials = new Map();
-        let envTexture, bgColor = new THREE.Color(0xf5f5f5);
+        let envTexture, bgColor = new THREE.Color(0x333333);
         let sunLight;
 
         const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 100);
-        let clipAxis = 'y', clipNegate = true, cutLineColor = new THREE.Color(0xff0000);
-        const state = { mode: 'render', cam: 'fly', isoType: 'parallel', bg: 'sky', cutEnabled: true, gyro: false };
-        const move = { f:0, b:0, l:0, r:0, u:0, d:0 };
+        let clipAxis = 'y', clipNegate = true; 
+        let cutLineColor = new THREE.Color(0xff0000);
+
+        const state = { mode: 'render', cam: 'fly', bg: 'sky', cutEnabled: true, gyro: false };
+
         const velocity = new THREE.Vector3();
-        let speedMult = 1, isTouching = false, touchStartX = 0, touchStartY = 0;
+        const move = { f:0, b:0, l:0, r:0, u:0, d:0 };
+        let speedMult = 1;
         const raycaster = new THREE.Raycaster();
 
-        // 초기화 실행
-        try {
-            init();
-            animate();
-        } catch (err) {
-            alert("초기화 오류: " + err.message);
-        }
+        // 모바일 터치 상태
+        let isTouching = false; 
+        let touchStartX = 0, touchStartY = 0;
+
+        init();
+        animate();
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = bgColor;
-            scene.add(modelGroup);
+            scene.background = new THREE.Color(0x333333);
 
             renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -270,15 +245,7 @@
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.localClippingEnabled = true; 
-            renderer.xr.enabled = true; 
             document.body.appendChild(renderer.domElement);
-
-            if(isMobile) {
-                const arBtn = ARButton.createButton(renderer, { optionalFeatures: ['dom-overlay'], domOverlay: { root: document.body } });
-                arBtn.style.bottom = "20px"; arBtn.style.background = "white"; arBtn.style.color = "#333";
-                arBtn.style.border = "1px solid #ccc"; arBtn.style.borderRadius = "20px"; arBtn.style.fontWeight = "bold";
-                document.body.appendChild(arBtn);
-            }
 
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
             envTexture = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -286,50 +253,54 @@
             scene.background = envTexture;
 
             const aspect = window.innerWidth / window.innerHeight;
-            perspCamera = new THREE.PerspectiveCamera(50, aspect, 0.1, 5000);
-            perspCamera.position.set(20, 20, 20);
+            
+            // Perspective Camera (Fly/Walk)
+            perspCamera = new THREE.PerspectiveCamera(60, aspect, 0.1, 2000);
+            perspCamera.position.set(10, 10, 10);
 
+            // Orthographic Camera (ISO)
             const frustum = 50;
-            orthoCamera = new THREE.OrthographicCamera(-frustum*aspect, frustum*aspect, frustum, -frustum, 0.1, 5000);
+            orthoCamera = new THREE.OrthographicCamera(-frustum*aspect, frustum*aspect, frustum, -frustum, 0.1, 2000);
             orthoCamera.position.set(50, 50, 50);
             orthoCamera.lookAt(0, 0, 0);
 
             activeCamera = perspCamera;
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
 
-            sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+            sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
             sunLight.position.set(50, 80, 50);
             sunLight.castShadow = true;
             sunLight.shadow.mapSize.set(2048, 2048);
             scene.add(sunLight);
 
-            pControls = new PointerLockControls(perspCamera, document.body); 
-            oControls = new OrbitControls(perspCamera, renderer.domElement); 
-            oControls.enableDamping = true; oControls.enabled = false;
-            gControls = new DeviceOrientationControls(perspCamera); gControls.enabled = false;
+            // Controls
+            pControls = new PointerLockControls(perspCamera, document.body); // PC
+            oControls = new OrbitControls(orthoCamera, renderer.domElement); // ISO
+            oControls.enableDamping = true;
+            oControls.enabled = false;
+            
+            // Gyro Controls (초기엔 생성만)
+            gControls = new DeviceOrientationControls(perspCamera);
+            gControls.enabled = false;
 
             setupEvents();
             setupUI();
-            makePanelsDraggable();
+            makePanelsDraggable(); // 패널 이동 기능
 
-            // [자동 실행 시도]
-            const log = document.getElementById('status-log');
-            log.innerText = "Attempting auto-load: ./model.glb";
-            
-            // UI 강제 업데이트: 자동 로드 중 표시
-            document.getElementById('upload-ui').style.display = 'none';
-            document.getElementById('auto-loader').style.display = 'flex';
-
-            // GitHub Pages 경로 문제 방지 (상대 경로 명시)
-            loadGLB('./model.glb', true);
+            // Auto Load
+            setTimeout(() => {
+                document.getElementById('loader').style.display = 'block';
+                loadGLB('./model.glb');
+            }, 500);
         }
 
-        function loadGLB(url, isAuto = false) {
+        function loadGLB(url) {
             new GLTFLoader().load(url, (gltf) => {
                 try {
-                    if(model) modelGroup.remove(model);
+                    if(model) scene.remove(model);
                     model = gltf.scene;
 
                     const box = new THREE.Box3().setFromObject(model);
@@ -339,214 +310,374 @@
                     
                     model.traverse(c => {
                         if(c.isMesh) {
-                            c.castShadow = true; c.receiveShadow = true;
+                            c.castShadow = true;
+                            c.receiveShadow = true;
                             originalMaterials.set(c.uuid, c.material);
                             applyClipping(c.material);
+
                             const edges = new THREE.EdgesGeometry(c.geometry, 25);
                             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: cutLineColor }));
                             line.material.clippingPlanes = [clipPlane];
-                            line.visible = false; line.userData.isEdge = true;
+                            line.visible = false; 
+                            line.userData.isEdge = true;
                             c.add(line); 
                         }
                     });
 
-                    modelGroup.add(model);
+                    scene.add(model);
                     
-                    const maxDim = Math.max(size.x, size.y, size.z) || 20; // 0일 경우 대비
+                    const maxDim = Math.max(size.x, size.y, size.z);
                     const slider = document.getElementById('cut-slider');
                     slider.min = -maxDim; slider.max = maxDim; slider.value = maxDim;
                     updateClipPlane(slider.value);
 
-                    // 카메라 강제 리셋
-                    perspCamera.position.set(maxDim, maxDim * 0.6, maxDim);
-                    perspCamera.lookAt(0,0,0);
-                    orthoCamera.zoom = 50 / maxDim;
-                    orthoCamera.position.set(maxDim, maxDim, maxDim);
-                    orthoCamera.lookAt(0,0,0);
-                    orthoCamera.updateProjectionMatrix();
-
-                    // UI 전환
-                    document.getElementById('landing-page').style.opacity = '0';
-                    setTimeout(() => {
-                        document.getElementById('landing-page').style.display = 'none';
-                        document.getElementById('ui-layer').style.display = 'block';
-                    }, 500);
+                    document.getElementById('landing-page').style.display = 'none';
+                    document.getElementById('ui-layer').style.display = 'block';
                     
-                    showToast("Loaded Successfully!");
+                    showToast("Loaded! Drag panels to arrange.");
                     switchCam('fly');
 
-                } catch (e) { 
-                    alert("모델 처리 중 오류: " + e.message); 
-                }
+                } catch (e) { console.error(e); }
             }, undefined, (err) => {
-                // 실패 처리
-                if(isAuto) {
-                    console.warn("자동 로드 실패. 수동 업로드로 전환.");
-                    document.getElementById('auto-loader').style.display = 'none';
-                    document.getElementById('upload-ui').style.display = 'block';
-                    document.getElementById('status-log').innerText = "Auto-load failed. Please upload manually.";
-                } else {
-                    alert("파일 로드 실패: " + err.message + "\n(파일이 손상되었거나 경로 문제일 수 있습니다)");
-                    document.getElementById('auto-loader').style.display = 'none';
-                    document.getElementById('upload-ui').style.display = 'block';
-                }
+                console.warn("Manual load required");
+                document.getElementById('loader').style.display = 'none';
             });
         }
 
-        // --- File Input Event ---
-        document.getElementById('file-input').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-            // 수동 업로드 시 UI 변경
-            document.getElementById('upload-ui').style.display = 'none';
-            document.getElementById('auto-loader').style.display = 'flex';
-            document.getElementById('status-log').innerText = "Loading " + file.name + "...";
-            loadGLB(URL.createObjectURL(file), false);
-        });
-
-        // --- 나머지 기능들 (기존 유지) ---
-        function applyClipping(m) { if(Array.isArray(m)) m.forEach(x => x.clippingPlanes = [clipPlane]); else m.clippingPlanes = [clipPlane]; }
-        function updateClipPlane(val) {
-            const v = parseFloat(val); clipPlane.constant = clipNegate ? v : -v; clipPlane.normal.set(0,0,0);
-            const dir = clipNegate ? -1 : 1; if(clipAxis === 'x') clipPlane.normal.x = dir; if(clipAxis === 'y') clipPlane.normal.y = dir; if(clipAxis === 'z') clipPlane.normal.z = dir;
+        function applyClipping(m) {
+            if(Array.isArray(m)) m.forEach(x => x.clippingPlanes = [clipPlane]);
+            else m.clippingPlanes = [clipPlane];
         }
+
+        function updateClipPlane(val) {
+            const v = parseFloat(val);
+            clipPlane.constant = clipNegate ? v : -v;
+            clipPlane.normal.set(0,0,0);
+            const dir = clipNegate ? -1 : 1;
+            if(clipAxis === 'x') clipPlane.normal.x = dir;
+            if(clipAxis === 'y') clipPlane.normal.y = dir;
+            if(clipAxis === 'z') clipPlane.normal.z = dir;
+        }
+
         function toggleMode(mode) {
-            state.mode = mode; const isRender = mode === 'render';
-            document.getElementById('mode-render').className = isRender ? 'active' : ''; document.getElementById('mode-white').className = !isRender ? 'active' : '';
+            state.mode = mode;
+            const isRender = mode === 'render';
+            document.getElementById('mode-render').className = isRender ? 'active' : '';
+            document.getElementById('mode-white').className = !isRender ? 'active' : '';
             updateBackground();
+
             if(!model) return;
             model.traverse(c => {
                 if(c.isMesh) {
-                    if(isRender) { c.material = originalMaterials.get(c.uuid); applyClipping(c.material); }
-                    else { c.material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.0, clippingPlanes: [clipPlane], side: THREE.DoubleSide }); }
-                    c.children.forEach(ch => { if(ch.userData.isEdge) { ch.visible = !isRender; ch.material.color = isRender ? cutLineColor : new THREE.Color(0x333333); } });
+                    if(isRender) {
+                        c.material = originalMaterials.get(c.uuid);
+                        applyClipping(c.material);
+                    } else {
+                        c.material = new THREE.MeshStandardMaterial({
+                            color: 0xffffff, roughness: 0.9, metalness: 0.1,
+                            clippingPlanes: [clipPlane], side: THREE.DoubleSide
+                        });
+                    }
+                    c.children.forEach(ch => {
+                        if(ch.userData.isEdge) {
+                            ch.visible = !isRender;
+                            ch.material.color = isRender ? cutLineColor : new THREE.Color(0x000000);
+                        }
+                    });
                 }
             });
         }
-        function updateBackground() { scene.background = (state.bg === 'sky') ? envTexture : bgColor; }
+
+        function updateBackground() {
+            scene.background = (state.bg === 'sky') ? envTexture : bgColor;
+        }
+
+        // --- 패널 드래그 로직 (PC UX) ---
+        function makePanelsDraggable() {
+            // 상단 바, 환경 패널, 컷 패널 모두 드래그 가능하게
+            const draggables = [
+                document.getElementById('env-panel'),
+                document.getElementById('cut-panel'),
+                // document.getElementById('top-bar') // 툴바도 원하면 드래그 가능
+            ];
+
+            draggables.forEach(panel => {
+                if(!panel) return;
+                const header = panel.querySelector('.panel-header') || panel; // 헤더가 없으면 패널 전체
+                const toggle = panel.querySelector('.toggle-btn');
+                
+                if(toggle) {
+                    toggle.onclick = () => {
+                        panel.classList.toggle('minimized');
+                        toggle.innerText = panel.classList.contains('minimized') ? '＋' : '－';
+                    };
+                }
+
+                let isDragging = false, startX, startY, initLeft, initTop;
+                
+                // Mouse Events (PC)
+                header.onmousedown = (e) => {
+                    if(e.target.tagName === 'BUTTON') return;
+                    isDragging = true;
+                    startX = e.clientX; startY = e.clientY;
+                    initLeft = panel.offsetLeft; initTop = panel.offsetTop;
+                    document.onmousemove = (e) => {
+                        if(!isDragging) return;
+                        panel.style.left = (initLeft + e.clientX - startX) + 'px';
+                        panel.style.top = (initTop + e.clientY - startY) + 'px';
+                    };
+                    document.onmouseup = () => { isDragging = false; document.onmousemove = null; };
+                };
+            });
+        }
 
         function animate() {
-            renderer.setAnimationLoop(() => { 
-                if(oControls.enabled) oControls.update();
-                if(state.gyro && gControls && gControls.enabled) gControls.update();
+            requestAnimationFrame(animate);
 
-                const isFlyWalk = (state.cam === 'fly' || state.cam === 'walk');
-                if(isFlyWalk) {
-                    const delta = 0.016;
-                    velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= velocity.y * 5.0 * delta;
-                    let inputZ = Number(move.f) - Number(move.b) + (isTouching && isMobile ? 1 : 0); let inputX = Number(move.r) - Number(move.l);
-                    const camDir = new THREE.Vector3(); activeCamera.getWorldDirection(camDir); camDir.y = 0; camDir.normalize();
-                    const camSide = new THREE.Vector3(); camSide.copy(camDir).cross(activeCamera.up).normalize();
-                    const speed = (state.cam === 'walk' ? 40 : 60) * speedMult;
-                    if(inputZ || inputX) {
-                        const moveVec = new THREE.Vector3();
-                        if(inputZ) moveVec.add(camDir.multiplyScalar(inputZ * speed * delta));
-                        if(inputX) moveVec.add(camSide.multiplyScalar(inputX * speed * delta));
-                        activeCamera.position.add(moveVec);
-                        if(state.cam === 'fly' && !isMobile) { if(move.u) activeCamera.position.y += speed * delta; if(move.d) activeCamera.position.y -= speed * delta; }
+            if(oControls.enabled) oControls.update();
+            if(state.gyro && gControls && gControls.enabled) gControls.update();
+
+            // Movement Logic
+            const isFlyWalk = (state.cam === 'fly' || state.cam === 'walk');
+            
+            if(isFlyWalk) {
+                const delta = 0.016;
+                
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                velocity.y -= velocity.y * 5.0 * delta;
+
+                // Input (Keyboard or Touch-Hold)
+                // 모바일: 터치 중이면 전진 (isTouching)
+                let inputZ = Number(move.f) - Number(move.b) + (isTouching && isMobile ? 1 : 0);
+                let inputX = Number(move.r) - Number(move.l);
+
+                // 방향 벡터 계산
+                const direction = new THREE.Vector3();
+                
+                // Gyro가 켜져있으면 카메라가 이미 회전해 있으므로, 카메라가 보는 방향으로 전진
+                const camDir = new THREE.Vector3();
+                activeCamera.getWorldDirection(camDir);
+                camDir.y = 0; camDir.normalize();
+                
+                const camSide = new THREE.Vector3();
+                camSide.copy(camDir).cross(activeCamera.up).normalize();
+
+                const speed = (state.cam === 'walk' ? 40 : 60) * speedMult;
+
+                // 속도 적용
+                if(inputZ || inputX) {
+                    // 직접 벡터 계산해서 이동 (Gyro 모드 호환성 위해)
+                    const moveVec = new THREE.Vector3();
+                    if(inputZ) moveVec.add(camDir.multiplyScalar(inputZ * speed * delta));
+                    if(inputX) moveVec.add(camSide.multiplyScalar(inputX * speed * delta));
+                    
+                    activeCamera.position.add(moveVec);
+                    
+                    // Fly Height (PC Key)
+                    if(state.cam === 'fly' && !isMobile) {
+                        if(move.u) activeCamera.position.y += speed * delta;
+                        if(move.d) activeCamera.position.y -= speed * delta;
                     }
-                    if(state.cam === 'walk') {
-                        velocity.y -= 9.8 * 8.0 * delta;
-                        raycaster.set(activeCamera.position, new THREE.Vector3(0, -1, 0));
-                        const intersects = raycaster.intersectObjects(scene.children, true);
-                        if (intersects.length > 0) {
-                            const dist = intersects[0].distance;
-                            if (dist < 1.7) { activeCamera.position.y = intersects[0].point.y + 1.7; velocity.y = Math.max(0, velocity.y); }
-                        }
-                        activeCamera.position.y += velocity.y * delta;
-                        if(activeCamera.position.y < -50) { activeCamera.position.y = 50; velocity.y=0; }
-                    }
+                    // Mobile Fly: 보는 방향으로 날아가게 하려면 Y값도 추가해야 함 (간소화 위해 생략하거나 옵션)
                 }
-                renderer.render(scene, activeCamera);
-            });
+
+                // Gravity (Walk)
+                if(state.cam === 'walk') {
+                    velocity.y -= 9.8 * 8.0 * delta;
+                    raycaster.set(activeCamera.position, new THREE.Vector3(0, -1, 0));
+                    const intersects = raycaster.intersectObjects(scene.children, true);
+                    if (intersects.length > 0) {
+                        const dist = intersects[0].distance;
+                        const h = 1.7;
+                        if (dist < h) {
+                            activeCamera.position.y = intersects[0].point.y + h;
+                            velocity.y = Math.max(0, velocity.y);
+                        } else if (dist < h + 0.5 && velocity.y < 0) {
+                             activeCamera.position.y = intersects[0].point.y + h;
+                             velocity.y = 0;
+                        }
+                    }
+                    activeCamera.position.y += velocity.y * delta;
+                    if(activeCamera.position.y < -50) { activeCamera.position.y = 50; velocity.y=0; }
+                }
+            }
+            renderer.render(scene, activeCamera);
         }
 
         function setupEvents() {
-            document.addEventListener('touchstart', (e) => { if(e.target.closest('button') || e.target.closest('input') || e.target.closest('.panel')) return; isTouching = true; touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; });
-            document.addEventListener('touchmove', (e) => {
-                if(!isTouching || state.cam === 'iso' || state.gyro) return; 
-                const dx = e.touches[0].clientX - touchStartX; const dy = e.touches[0].clientY - touchStartY;
-                perspCamera.rotation.y -= dx * 0.005; perspCamera.rotation.x -= dy * 0.005;
-                touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
+            // Mobile Touch Logic (Look & Move)
+            document.addEventListener('touchstart', (e) => {
+                if(e.target.closest('button') || e.target.closest('input') || e.target.closest('.panel')) return;
+                isTouching = true; // 이동 시작
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
             });
-            document.addEventListener('touchend', () => { isTouching = false; });
+            
+            document.addEventListener('touchmove', (e) => {
+                if(!isTouching || state.cam === 'iso' || state.gyro) return; // Gyro 켜지면 드래그 회전 비활성
+                const dx = e.touches[0].clientX - touchStartX;
+                const dy = e.touches[0].clientY - touchStartY;
+                
+                // 드래그로 시선 회전
+                perspCamera.rotation.y -= dx * 0.005;
+                perspCamera.rotation.x -= dy * 0.005;
+                perspCamera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, perspCamera.rotation.x));
+                
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+
+            document.addEventListener('touchend', () => { isTouching = false; }); // 이동 멈춤
+
+            // Keyboard
             const onKey = (code, v) => {
-                switch(code) { case 'KeyW': move.f = v; break; case 'KeyS': move.b = v; break; case 'KeyA': move.l = v; break; case 'KeyD': move.r = v; break; case 'KeyE': move.u = v; break; case 'KeyQ': move.d = v; break; case 'ShiftLeft': speedMult = v ? 3 : 1; break; case 'Space': if(v && state.cam === 'walk') velocity.y += 15; break; }
+                switch(code) {
+                    case 'KeyW': move.f = v; break;
+                    case 'KeyS': move.b = v; break;
+                    case 'KeyA': move.l = v; break;
+                    case 'KeyD': move.r = v; break;
+                    case 'KeyE': move.u = v; break;
+                    case 'KeyQ': move.d = v; break;
+                    case 'ShiftLeft': speedMult = v ? 3 : 1; break;
+                    case 'Space': if(v && state.cam === 'walk') velocity.y += 15; break;
+                }
             };
-            document.addEventListener('keydown', e => onKey(e.code, true)); document.addEventListener('keyup', e => onKey(e.code, false));
+            document.addEventListener('keydown', e => onKey(e.code, true));
+            document.addEventListener('keyup', e => onKey(e.code, false));
+            
             window.addEventListener('resize', () => {
                 const aspect = window.innerWidth/window.innerHeight;
                 perspCamera.aspect = aspect; perspCamera.updateProjectionMatrix();
-                orthoCamera.left = -50*aspect; orthoCamera.right = 50*aspect; orthoCamera.updateProjectionMatrix();
+                orthoCamera.left = -50*aspect; orthoCamera.right = 50*aspect;
+                orthoCamera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
+            
             if(!isMobile) {
-                document.addEventListener('click', (e) => { if(e.target.closest('.panel')) return; if(state.cam !== 'iso' && !pControls.isLocked) pControls.lock(); });
+                document.addEventListener('click', (e) => {
+                    if(e.target.closest('.panel')) return;
+                    if(state.cam !== 'iso' && !pControls.isLocked) pControls.lock();
+                });
             }
         }
 
         function toggleGyro() {
-            state.gyro = !state.gyro; const btn = document.getElementById('btn-gyro');
+            state.gyro = !state.gyro;
+            const btn = document.getElementById('btn-gyro');
+            
             if(state.gyro) {
-                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    DeviceOrientationEvent.requestPermission().then(r => { if(r=='granted') { gControls.connect(); gControls.enabled=true; btn.classList.add('active'); showToast("Gyro ON"); } });
-                } else { gControls.connect(); gControls.enabled=true; btn.classList.add('active'); showToast("Gyro ON"); }
-            } else { gControls.enabled = false; btn.classList.remove('active'); perspCamera.rotation.set(0,0,0); }
+                // Gyro ON
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    // iOS 13+
+                    DeviceOrientationEvent.requestPermission()
+                        .then(response => {
+                            if (response == 'granted') {
+                                gControls.connect();
+                                gControls.enabled = true;
+                                btn.classList.add('active');
+                                showToast("Gyro Enabled: Move device to look");
+                            }
+                        })
+                        .catch(console.error);
+                } else {
+                    // Non-iOS
+                    gControls.connect();
+                    gControls.enabled = true;
+                    btn.classList.add('active');
+                    showToast("Gyro Enabled");
+                }
+            } else {
+                // Gyro OFF
+                gControls.enabled = false;
+                btn.classList.remove('active');
+                // 카메라 수평 맞추기 (옵션)
+                perspCamera.rotation.x = 0;
+                perspCamera.rotation.z = 0;
+            }
         }
 
         function switchCam(mode) {
             state.cam = mode;
-            ['cam-fly','cam-walk','cam-iso'].forEach(id => document.getElementById(id).classList.toggle('active', id === `cam-${mode}`));
+            ['cam-fly','cam-walk','cam-iso'].forEach(id => {
+                document.getElementById(id).classList.toggle('active', id === `cam-${mode}`);
+            });
             const isIso = mode === 'iso';
             document.getElementById('crosshair').style.display = isIso ? 'none' : 'block';
-            document.getElementById('iso-options').style.display = isIso ? 'flex' : 'none';
-            if(isIso) { setIsoCamera(state.isoType); if(!isMobile) pControls.unlock(); if(state.gyro) toggleGyro(); showToast("ISO View: Drag to Rotate"); }
-            else { activeCamera = perspCamera; oControls.object = perspCamera; oControls.enabled = false; showToast(mode.toUpperCase() + " Mode"); }
-        }
-
-        function setIsoCamera(type) {
-            state.isoType = type;
-            document.getElementById('iso-parallel').className = type==='parallel'?'active':'';
-            document.getElementById('iso-persp').className = type==='persp'?'active':'';
-            document.getElementById('lens-row').style.display = type==='persp'?'flex':'none';
-            const zoomDist = 50;
-            if(type === 'parallel') { activeCamera = orthoCamera; activeCamera.position.set(zoomDist, zoomDist, zoomDist); activeCamera.lookAt(0,0,0); }
-            else { activeCamera = perspCamera; activeCamera.position.set(zoomDist, zoomDist, zoomDist); activeCamera.lookAt(0,0,0); }
-            oControls.object = activeCamera; oControls.enabled = true; oControls.update();
+            
+            if(isIso) {
+                activeCamera = orthoCamera; oControls.enabled = true; 
+                if(!isMobile) pControls.unlock();
+                if(state.gyro) toggleGyro(); // ISO에선 자이로 끔
+                showToast("ISO Mode");
+            } else {
+                activeCamera = perspCamera; oControls.enabled = false;
+                showToast(mode.toUpperCase() + " Mode");
+            }
         }
 
         function setupUI() {
-            // 버튼 이벤트 바인딩 (기존 로직)
+            document.getElementById('file-input').onchange = (e) => loadGLB(URL.createObjectURL(e.target.files[0]));
+            
             document.getElementById('mode-render').onclick = () => toggleMode('render');
             document.getElementById('mode-white').onclick = () => toggleMode('white');
             document.getElementById('cam-fly').onclick = () => switchCam('fly');
             document.getElementById('cam-walk').onclick = () => switchCam('walk');
             document.getElementById('cam-iso').onclick = () => switchCam('iso');
-            document.getElementById('btn-share').onclick = () => { navigator.clipboard.writeText(window.location.href); showToast("Link Copied!"); };
-            document.getElementById('btn-gyro').onclick = toggleGyro;
-            document.getElementById('iso-parallel').onclick = () => setIsoCamera('parallel');
-            document.getElementById('iso-persp').onclick = () => setIsoCamera('persp');
-            document.getElementById('bg-hdri').onclick = () => { state.bg='sky'; updateBackground(); document.getElementById('bg-hdri').classList.add('active'); document.getElementById('bg-color').classList.remove('active'); };
-            document.getElementById('bg-color').onclick = () => { state.bg='color'; updateBackground(); document.getElementById('bg-color-picker-row').style.display='flex'; document.getElementById('bg-color').classList.add('active'); document.getElementById('bg-hdri').classList.remove('active'); };
+            document.getElementById('btn-share').onclick = () => { navigator.clipboard.writeText(window.location.href); showToast("URL Copied!"); };
+            document.getElementById('btn-gyro').onclick = toggleGyro; // 자이로 버튼 연결
+
+            // Env
+            document.getElementById('bg-hdri').onclick = () => { state.bg='sky'; updateBackground(); };
+            document.getElementById('bg-color').onclick = () => { state.bg='color'; updateBackground(); document.getElementById('bg-color-picker-row').style.display='flex'; };
             document.getElementById('bg-color-val').oninput = (e) => { bgColor.set(e.target.value); updateBackground(); };
+            
             document.getElementById('sun-intensity').oninput = (e) => sunLight.intensity = parseFloat(e.target.value);
-            document.getElementById('sun-angle').oninput = (e) => { const rad = e.target.value * (Math.PI/180); sunLight.position.x = Math.sin(rad) * 50; sunLight.position.z = Math.cos(rad) * 50; };
-            document.getElementById('cam-fov').oninput = (e) => {
-                const focal = parseFloat(e.target.value); document.getElementById('fov-val').innerText = focal;
-                const fov = 2 * Math.atan(24 / (2 * focal)) * (180 / Math.PI); perspCamera.fov = fov; perspCamera.updateProjectionMatrix();
+            document.getElementById('sun-angle').oninput = (e) => {
+                const rad = e.target.value * (Math.PI/180);
+                sunLight.position.x = Math.sin(rad) * 50; sunLight.position.z = Math.cos(rad) * 50;
             };
-            document.getElementById('cut-toggle').onclick = (e) => { state.cutEnabled=!state.cutEnabled; renderer.localClippingEnabled=state.cutEnabled; e.target.classList.toggle('active'); };
-            const setAxis = (ax) => { clipAxis=ax; ['axis-x','axis-y','axis-z'].forEach(id => document.getElementById(id).classList.toggle('active', id===`axis-${ax}`)); updateClipPlane(document.getElementById('cut-slider').value); };
-            document.getElementById('axis-x').onclick = () => setAxis('x'); document.getElementById('axis-y').onclick = () => setAxis('y'); document.getElementById('axis-z').onclick = () => setAxis('z');
-            document.getElementById('axis-flip').onclick = () => { clipNegate=!clipNegate; updateClipPlane(document.getElementById('cut-slider').value); };
+            document.getElementById('shadow-toggle').onclick = (e) => {
+                const isOn = e.target.innerText === "ON";
+                e.target.innerText = isOn ? "OFF" : "ON";
+                e.target.classList.toggle('active');
+                sunLight.castShadow = !isOn;
+            };
+
+            // Cut
+            document.getElementById('cut-toggle').onclick = (e) => {
+                state.cutEnabled = !state.cutEnabled;
+                renderer.localClippingEnabled = state.cutEnabled;
+                e.target.classList.toggle('active');
+            };
+            const setAxis = (ax) => {
+                clipAxis = ax;
+                ['axis-x','axis-y','axis-z'].forEach(id => document.getElementById(id).classList.toggle('active', id===`axis-${ax}`));
+                updateClipPlane(document.getElementById('cut-slider').value);
+            };
+            document.getElementById('axis-x').onclick = () => setAxis('x');
+            document.getElementById('axis-y').onclick = () => setAxis('y');
+            document.getElementById('axis-z').onclick = () => setAxis('z');
+            document.getElementById('axis-flip').onclick = () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); };
             document.getElementById('cut-slider').oninput = (e) => updateClipPlane(e.target.value);
-            document.getElementById('cut-color').oninput = (e) => { cutLineColor.set(e.target.value); if(state.mode==='render'&&model) model.traverse(c=>{ c.children.forEach(ch=>{ if(ch.userData.isEdge) ch.material.color=cutLineColor; })}); };
-            document.getElementById('ar-scale').onchange = (e) => { const s = parseFloat(e.target.value); modelGroup.scale.set(s,s,s); };
+            document.getElementById('cut-color').oninput = (e) => {
+                cutLineColor.set(e.target.value);
+                if(state.mode==='render'&&model) model.traverse(c=>{ c.children.forEach(ch=>{ if(ch.userData.isEdge) ch.material.color=cutLineColor; })});
+            };
         }
         
-        window.toggleMobilePanels = () => { const panels = document.querySelectorAll('.panel'); const isHidden = panels[0].style.display === 'none'; panels.forEach(p => p.style.display = isHidden ? 'flex' : 'none'); };
-        function makePanelsDraggable() { document.querySelectorAll('.panel').forEach(panel => { const header = panel.querySelector('.panel-header'); const toggle = panel.querySelector('.toggle-btn'); toggle.onclick = () => { panel.classList.toggle('minimized'); toggle.innerText = panel.classList.contains('minimized')?'＋':'－'; }; let isDragging = false, startX, startY, initLeft, initTop; header.onmousedown = (e) => { if(e.target.tagName==='BUTTON') return; isDragging = true; startX = e.clientX; startY = e.clientY; initLeft = panel.offsetLeft; initTop = panel.offsetTop; document.onmousemove = (e) => { if(!isDragging)return; panel.style.left=(initLeft+e.clientX-startX)+'px'; panel.style.top=(initTop+e.clientY-startY)+'px'; }; document.onmouseup = () => { isDragging = false; document.onmousemove = null; }; }; }); }
-        function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.style.opacity = 1; setTimeout(() => t.style.opacity = 0, 3000); }
+        // 모바일 메뉴 토글
+        window.toggleMobilePanels = () => {
+            const panels = document.querySelectorAll('.panel');
+            const isHidden = panels[0].style.display === 'none';
+            panels.forEach(p => p.style.display = isHidden ? 'flex' : 'none');
+        };
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg; t.style.opacity = 1;
+            setTimeout(() => t.style.opacity = 0, 3000);
+        }
     </script>
 </body>
 </html>
