@@ -457,9 +457,28 @@
             if(!isMobile) {
                 document.addEventListener('click', (e) => {
                     if(e.target.closest('button') || e.target.closest('input') || e.target.closest('.panel')) return;
-                    if(state.cam !== 'iso' && !pControls.isLocked && !state.gyro) {
-                        try { pControls.lock(); } catch (err) { }
+                    
+                    // Pointer Lock 보안 예외 처리
+                    if(state.cam !== 'iso' && !pControls.isLocked && !state.gyro && !document.pointerLockElement) {
+                        try {
+                            const promise = pControls.lock();
+                            if (promise instanceof Promise) {
+                                promise.catch(err => {
+                                    if (err.name !== 'NotAllowedError' && err.name !== 'SecurityError') {
+                                        console.warn("PointerLock rejection:", err);
+                                    }
+                                });
+                            }
+                        } catch (err) {
+                            // 동기적 에러 발생 시 무시
+                        }
                     }
+                });
+
+                // Pointer Lock 에러 전역 핸들러
+                document.addEventListener('pointerlockerror', () => {
+                    console.warn("Pointer Lock Error: 브라우저 환경에 의해 마우스 잠금이 제한되었습니다.");
+                    showToast("Camera lock restricted.");
                 });
             }
         }
@@ -475,14 +494,20 @@
 
         function switchCam(mode) {
             state.cam = mode;
-            ['cam-fly','cam-walk','cam-iso'].forEach(id => document.getElementById(id).classList.toggle('active', id === `cam-${mode}`));
+            ['cam-fly','cam-walk','cam-iso'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.classList.toggle('active', id === `cam-${mode}`);
+            });
+            
             const isIso = mode === 'iso';
             const isWalk = mode === 'walk';
             document.getElementById('crosshair').style.display = isIso ? 'none' : 'block';
+            
             if(isMobile) {
                 document.getElementById('mobile-dpad').classList.toggle('active', !isIso);
                 document.getElementById('btn-ar').style.display = isWalk ? 'inline-block' : 'none';
             }
+            
             if(isIso) {
                 activeCamera = orthoCamera; oControls.object = orthoCamera; oControls.enabled = true;
                 if(!isMobile && pControls.isLocked) pControls.unlock();
@@ -496,8 +521,8 @@
         function toggleGyro() {
             if (!isMobile) { showToast("자이로 모드는 모바일에서만 지원됩니다."); return; }
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission().then(state => {
-                    if (state === 'granted') applyGyroState();
+                DeviceOrientationEvent.requestPermission().then(res => {
+                    if (res === 'granted') applyGyroState();
                     else showToast("센서 사용 권한이 필요합니다.");
                 }).catch(() => showToast("권한 요청에 실패했습니다."));
             } else {
@@ -518,38 +543,55 @@
 
         function disableGyro() {
             state.gyro = false;
-            if (document.getElementById('btn-gyro')) document.getElementById('btn-gyro').classList.remove('active');
+            const btn = document.getElementById('btn-gyro');
+            if (btn) btn.classList.remove('active');
             if (isMobile && state.cam !== 'iso') oControls.enabled = true;
         }
 
         function setupUI() {
-            document.getElementById('file-input').onchange = (e) => loadGLB(URL.createObjectURL(e.target.files[0]));
-            document.getElementById('hdr-input').onchange = (e) => loadHDR(URL.createObjectURL(e.target.files[0]));
+            document.getElementById('file-input').onchange = (e) => {
+                if (e.target.files[0]) loadGLB(URL.createObjectURL(e.target.files[0]));
+            };
+            document.getElementById('hdr-input').onchange = (e) => {
+                if (e.target.files[0]) loadHDR(URL.createObjectURL(e.target.files[0]));
+            };
+            
             document.getElementById('mode-render').onclick = () => toggleMode('render');
             document.getElementById('mode-white').onclick = () => toggleMode('white');
             document.getElementById('cam-fly').onclick = () => switchCam('fly');
             document.getElementById('cam-walk').onclick = () => switchCam('walk');
             document.getElementById('cam-iso').onclick = () => switchCam('iso');
+            
             document.getElementById('btn-reset').onclick = () => {
                 perspCamera.position.copy(initialCamPos); perspCamera.rotation.copy(initialCamRot);
                 oControls.target.set(0, 0, 0); velocity.set(0,0,0); showToast("카메라 리셋");
             };
+            
             document.getElementById('btn-gyro').onclick = () => toggleGyro();
+            
             document.getElementById('btn-ar').onclick = () => {
                 if (!navigator.xr) { showToast("AR 미지원 브라우저입니다."); return; }
-                navigator.xr.isSessionSupported('immersive-ar').then(s => {
-                    if (s) navigator.xr.requestSession('immersive-ar', { optionalFeatures: ['local-floor', 'dom-overlay'], domOverlay: { root: document.body } }).then(s => renderer.xr.setSession(s));
-                    else showToast("AR을 사용할 수 없습니다.");
+                navigator.xr.isSessionSupported('immersive-ar').then(supported => {
+                    if (supported) {
+                        renderer.xr.setReferenceSpaceType('local');
+                        navigator.xr.requestSession('immersive-ar', { 
+                            optionalFeatures: ['local-floor', 'dom-overlay'], 
+                            domOverlay: { root: document.body } 
+                        }).then(s => renderer.xr.setSession(s)).catch(() => showToast("AR 세션 시작 실패"));
+                    } else { showToast("AR을 사용할 수 없습니다."); }
                 });
             };
+            
             document.getElementById('btn-help').onclick = () => document.getElementById('help-panel').style.display = 'flex';
             document.getElementById('close-help').onclick = () => document.getElementById('help-panel').style.display = 'none';
+            
             document.getElementById('btn-capture').onclick = () => {
                 renderer.render(scene, activeCamera);
                 const dataURL = renderer.domElement.toDataURL('image/png');
-                const link = document.createElement('a'); link.download = 'capture.png'; link.href = dataURL; link.click();
+                const link = document.createElement('a'); link.download = 'Explorer_Capture.png'; link.href = dataURL; link.click();
                 showToast("스크린샷 저장");
             };
+            
             document.getElementById('bg-hdri').onclick = (e) => { 
                 state.bg='sky'; if (state.mode === 'render') scene.background = envTexture && envTexture.isTexture ? envTexture : skyColor;
                 e.target.classList.add('active'); document.getElementById('bg-color').classList.remove('active');
@@ -558,19 +600,33 @@
                 state.bg='color'; if (state.mode === 'render') scene.background = bgColor;
                 e.target.classList.add('active'); document.getElementById('bg-hdri').classList.remove('active');
             };
-            document.getElementById('bg-color-val').oninput = (e) => { bgColor.set(e.target.value); if (state.mode === 'render' && state.bg === 'color') scene.background = bgColor; };
+            document.getElementById('bg-color-val').oninput = (e) => { 
+                bgColor.set(e.target.value); if (state.mode === 'render' && state.bg === 'color') scene.background = bgColor; 
+            };
+            
             document.getElementById('sun-intensity').oninput = (e) => sunLight.intensity = parseFloat(e.target.value);
             document.getElementById('sun-angle').oninput = (e) => {
                 const rad = e.target.value * (Math.PI/180);
                 sunLight.position.x = Math.sin(rad) * 40; sunLight.position.z = Math.cos(rad) * 40;
             };
-            document.getElementById('cut-toggle').onclick = (e) => { state.cutEnabled = !state.cutEnabled; renderer.localClippingEnabled = state.cutEnabled; e.target.classList.toggle('active'); };
+            
+            document.getElementById('cut-toggle').onclick = (e) => { 
+                state.cutEnabled = !state.cutEnabled; renderer.localClippingEnabled = state.cutEnabled; e.target.classList.toggle('active'); 
+            };
+            
             const setAxis = (ax) => { clipAxis = ax; ['axis-x', 'axis-y', 'axis-z'].forEach(id => document.getElementById(id).classList.toggle('active', id === `axis-${ax}`)); updateClipPlane(document.getElementById('cut-slider').value); };
             document.getElementById('axis-x').onclick = () => setAxis('x');
             document.getElementById('axis-y').onclick = () => setAxis('y');
             document.getElementById('axis-z').onclick = () => setAxis('z');
             document.getElementById('axis-flip').onclick = () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); };
             document.getElementById('cut-slider').oninput = (e) => updateClipPlane(e.target.value);
+            document.getElementById('cut-color').oninput = (e) => {
+                const newColorStr = e.target.value;
+                cutLineColor.set(newColorStr);
+                if(model && state.mode === 'render') {
+                    model.traverse(c => { c.children.forEach(ch => { if(ch.userData.isEdge) ch.material.color.copy(cutLineColor); }); });
+                }
+            };
         }
 
         function makePanelsDraggable() {
@@ -579,7 +635,12 @@
                 const toggle = panel.querySelector('.toggle-btn');
                 if(toggle) toggle.onclick = (e) => { e.stopPropagation(); panel.classList.toggle('minimized'); toggle.innerText = panel.classList.contains('minimized') ? '＋' : '－'; };
                 let isDragging = false, startX, startY, initLeft, initTop;
-                header.onmousedown = (e) => { isDragging = true; startX = e.clientX; startY = e.clientY; initLeft = panel.offsetLeft; initTop = panel.offsetTop; document.onmousemove = (e) => { if(!isDragging) return; panel.style.left = (initLeft + e.clientX - startX) + 'px'; panel.style.top = (initTop + e.clientY - startY) + 'px'; }; document.onmouseup = () => { isDragging = false; document.onmousemove = null; }; };
+                header.onmousedown = (e) => {
+                    isDragging = true; startX = e.clientX; startY = e.clientY;
+                    initLeft = panel.offsetLeft; initTop = panel.offsetTop;
+                    document.onmousemove = (e) => { if(!isDragging) return; panel.style.left = (initLeft + e.clientX - startX) + 'px'; panel.style.top = (initTop + e.clientY - startY) + 'px'; };
+                    document.onmouseup = () => { isDragging = false; document.onmousemove = null; };
+                };
             });
         }
 
