@@ -14,7 +14,7 @@
             --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
         }
         body {
-            margin: 0; overflow: hidden; background-color: #e5e5e5; /* 3D 캔버스 배경색과 구분 */
+            margin: 0; overflow: hidden; background-color: #f2f2f7;
             font-family: var(--font-main); color: #1d1d1f;
             user-select: none; -webkit-user-select: none;
             -webkit-font-smoothing: antialiased;
@@ -140,8 +140,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                 <h3>BROWSE FILES</h3>
             </div>
-            <!-- accept 속성을 넓혀서 인식 문제 해결 -->
-            <input type="file" id="file-input" accept=".glb,.gltf,model/gltf-binary" style="display:none;">
+            <input type="file" id="file-input" accept=".glb,.gltf" style="display:none;">
         </div>
         <div id="loading-status">INITIALIZING SCENE...</div>
     </div>
@@ -211,8 +210,9 @@
             <div class="close-help-btn" onclick="document.getElementById('help-modal').style.display='none'">✕</div>
             <h2 style="margin:0; font-size: 18px; font-weight: 800;">Navigation Guide</h2>
             <div style="font-size: 12px; margin-top: 15px; line-height: 1.6;">
-                <b>PC</b>: W/S/A/D 이동, E/Q 상승/하강, Space 점프/착지<br>
-                <b>VR</b>: 우측 조이스틱 이동, 트리거 텔레포트, B 버튼 모드 전환<br>
+                <b>PC</b>: W/S/A/D 이동, E/Q 상승/하강, Space 점프<br>
+                <b>ESC</b>: 화면 조작 중지 및 마우스 자유 상태<br>
+                <b>클릭</b>: 다시 화면을 움직이려면 화면의 빈 곳을 클릭하세요.<br>
                 <b>AI</b>: 현재 보고 있는 화면을 분석하여 건축적 통찰을 제공합니다.
             </div>
         </div>
@@ -239,10 +239,12 @@
         const move = { f:0, b:0, l:0, r:0, u:0, d:0 };
         const velocity = new THREE.Vector3();
         let speedMult = 1, isGrounded = false, raycaster = new THREE.Raycaster();
-        let isLockPending = false, modelMaxDim = 50;
+        let modelMaxDim = 50;
         const apiKey = "";
         let lastAIAnalysis = "";
-        const tempMatrix = new THREE.Matrix4();
+
+        // GITHUB 샘플 모델 경로
+        const GITHUB_SAMPLE_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf';
 
         init();
 
@@ -252,25 +254,17 @@
             scene.background = skyColor;
             scene.add(modelGroup);
 
-            // 2. Add Grid & Helpers (To ensure visibility immediately)
-            const gridHelper = new THREE.GridHelper(500, 50, 0x000000, 0xaaaaaa);
-            gridHelper.position.y = -0.1;
-            gridHelper.material.opacity = 0.2;
-            gridHelper.material.transparent = true;
-            scene.add(gridHelper);
-
-            // 3. Renderer
+            // 2. Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: false });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.localClippingEnabled = true;
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.0;
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // 4. Cameras
+            // 3. Cameras
             const aspect = window.innerWidth / window.innerHeight;
             cameraRig = new THREE.Group();
             scene.add(cameraRig);
@@ -279,50 +273,59 @@
             perspCamera.position.set(50, 50, 50);
             cameraRig.add(perspCamera);
 
+            // Orthographic Camera 초기화 - 가시 범위를 줌 레벨에 따라 조정 가능하도록
             orthoCamera = new THREE.OrthographicCamera(-50*aspect, 50*aspect, 50, -50, 0.1, 20000);
-            orthoCamera.position.set(50, 50, 50);
+            orthoCamera.position.set(100, 100, 100);
             orthoCamera.lookAt(0,0,0);
 
             activeCamera = perspCamera;
 
-            // 5. Lighting
+            // 4. Lighting
             ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
             scene.add(ambientLight);
-            
             hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
             scene.add(hemiLight);
-
             sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
             sunLight.position.set(100, 200, 100);
             sunLight.castShadow = true;
             scene.add(sunLight);
 
-            // 6. Environment
+            // 5. Environment
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
             envTexture = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
             scene.environment = envTexture;
 
-            // 7. Controls
+            // 6. Controls
             oControls = new OrbitControls(perspCamera, renderer.domElement);
             oControls.enableDamping = true;
-            oControls.enabled = true; // Default enabled so user can move immediately
+            oControls.enabled = false; 
 
             pControls = new PointerLockControls(perspCamera, document.body);
-            pControls.addEventListener('lock', () => { isLockPending = false; document.getElementById('crosshair').style.display = 'block'; oControls.enabled = false; });
-            pControls.addEventListener('unlock', () => { isLockPending = false; document.getElementById('crosshair').style.display = 'none'; if(state.cam === 'iso' || isMobile) oControls.enabled = true; });
+            
+            pControls.addEventListener('unlock', () => {
+                document.getElementById('crosshair').style.display = 'none';
+                oControls.enabled = false;
+                
+                // 시점 동기화
+                const dir = new THREE.Vector3();
+                perspCamera.getWorldDirection(dir);
+                oControls.target.copy(perspCamera.position).addScaledVector(dir, 10);
+                oControls.update();
+                
+                showToast("Paused (Click to continue)");
+            });
 
-            // 8. VR
+            pControls.addEventListener('lock', () => {
+                document.getElementById('crosshair').style.display = 'block';
+                oControls.enabled = false;
+            });
+
+            // 7. VR
             const vrBtnEl = VRButton.createButton(renderer);
             vrBtnEl.id = "VRButton";
             document.body.appendChild(vrBtnEl);
-            controllerR = renderer.xr.getController(1);
-            scene.add(controllerR);
-            const rayGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1)]);
-            vrTeleportRay = new THREE.Line(rayGeo, new THREE.LineBasicMaterial({ color: 0xAF52DE, transparent: true, opacity: 0.5 }));
-            vrTeleportRay.scale.z = 10;
-            controllerR.add(vrTeleportRay);
 
-            // 9. Init Calls
+            // 8. Init Calls
             setupEvents();
             setupUI();
             makePanelsDraggable();
@@ -330,7 +333,6 @@
             animate();
         }
 
-        // --- Loading Logic ---
         function loadGLB(url) {
             const loadingStatus = document.getElementById('loading-status');
             if(loadingStatus) {
@@ -338,29 +340,16 @@
                 loadingStatus.innerText = "SCENE LOADING...";
             }
 
-            // Immediately switch UI to viewer to prevent getting stuck
             document.getElementById('landing-page').style.display = 'none';
             document.getElementById('ui-layer').style.display = 'block';
             
-            // Force resize to fix black screen issues on transition
-            setTimeout(() => {
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                const aspect = window.innerWidth / window.innerHeight;
-                perspCamera.aspect = aspect;
-                perspCamera.updateProjectionMatrix();
-            }, 100);
-
             const loader = new GLTFLoader();
             loader.load(url, (gltf) => {
                 onModelLoaded(gltf);
             }, (xhr) => {
                 if(loadingStatus) loadingStatus.innerText = `LOADING... ${(xhr.loaded/xhr.total*100).toFixed(0)}%`;
             }, (err) => {
-                console.warn("Load failed, using fallback.", err);
-                loader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', (gltf) => {
-                    onModelLoaded(gltf);
-                    showToast("샘플 모델이 로드되었습니다.");
-                });
+                showToast("Failed to load model");
             });
         }
 
@@ -392,7 +381,6 @@
             });
             modelGroup.add(model);
 
-            // Update Cut Slider
             const slider = document.getElementById('cut-slider');
             if(slider) {
                 slider.min = -modelMaxDim;
@@ -401,35 +389,64 @@
                 updateClipPlane(slider.value);
             }
 
-            // Fit Camera
             const camDist = modelMaxDim * 1.5;
             perspCamera.position.set(camDist, camDist, camDist);
             oControls.target.set(0,0,0);
             oControls.update();
             
-            showToast("Workspace Active");
+            showToast("Project Loaded");
         }
 
-        // --- Core Functions ---
+        // HDR 로드 함수
+        function loadHDR(url) {
+            showToast("Loading HDR...");
+            new RGBELoader().load(url, (texture) => {
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                scene.background = texture;
+                scene.environment = texture;
+                showToast("HDR Applied");
+            }, undefined, (err) => {
+                showToast("HDR Load Error");
+            });
+        }
+
         function applyClipping(m) { if(Array.isArray(m)) m.forEach(x => x.clippingPlanes = [clipPlane]); else m.clippingPlanes = [clipPlane]; }
         function updateClipPlane(val) { const v = parseFloat(val); clipPlane.constant = clipNegate ? v : -v; clipPlane.normal.set(0,0,0); if(clipAxis==='x') clipPlane.normal.x=clipNegate?-1:1; if(clipAxis==='y') clipPlane.normal.y=clipNegate?-1:1; if(clipAxis==='z') clipPlane.normal.z=clipNegate?-1:1; }
         
         function switchCam(mode) {
             state.cam = mode;
-            ['cam-fly','cam-walk','cam-iso'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.toggle('active', id === `cam-${mode}`); });
+            ['cam-fly','cam-walk','cam-iso'].forEach(id => { 
+                const el = document.getElementById(id); 
+                if(el) el.classList.toggle('active', id === `cam-${mode}`); 
+            });
+            
             if(mode === 'iso') { 
-                activeCamera = orthoCamera; oControls.object = orthoCamera; oControls.enabled = true; 
+                // ISO 뷰 최적화
+                const aspect = window.innerWidth / window.innerHeight;
+                const frustumSize = modelMaxDim * 2;
+                orthoCamera.left = -frustumSize * aspect / 2;
+                orthoCamera.right = frustumSize * aspect / 2;
+                orthoCamera.top = frustumSize / 2;
+                orthoCamera.bottom = -frustumSize / 2;
+                
+                // 45도 각도 배치
+                orthoCamera.position.set(modelMaxDim, modelMaxDim, modelMaxDim);
+                orthoCamera.lookAt(0,0,0);
+                orthoCamera.updateProjectionMatrix();
+
+                activeCamera = orthoCamera; 
+                oControls.object = orthoCamera; 
+                oControls.enabled = true; 
                 if(document.pointerLockElement) document.exitPointerLock();
             } else { 
-                activeCamera = perspCamera; oControls.object = perspCamera; oControls.enabled = isMobile || !document.pointerLockElement; 
-                if(document.pointerLockElement) document.exitPointerLock();
+                activeCamera = perspCamera; 
+                oControls.object = perspCamera; 
+                oControls.enabled = false; 
             }
         }
 
-        // --- Event Handlers & Input ---
         function setupUI() {
-            // Main Button Bindings
-            document.getElementById('btn-load-sample').addEventListener('click', () => loadGLB('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'));
+            document.getElementById('btn-load-sample').addEventListener('click', () => loadGLB(GITHUB_SAMPLE_URL));
             
             const fileTrigger = document.getElementById('btn-trigger-file');
             const fileInput = document.getElementById('file-input');
@@ -450,13 +467,9 @@
             
             document.getElementById('btn-reset').addEventListener('click', () => {
                 oControls.target.set(0,0,0);
-                perspCamera.position.set(modelMaxDim*1.5, modelMaxDim*1.5, modelMaxDim*1.5);
+                const d = modelMaxDim * 1.5;
+                perspCamera.position.set(d, d, d);
                 oControls.update();
-            });
-
-            document.getElementById('btn-vr').addEventListener('click', () => {
-                const b = document.getElementById('VRButton');
-                if(b) b.click(); else showToast("VR Not Available");
             });
 
             document.getElementById('btn-help').addEventListener('click', () => document.getElementById('help-modal').style.display = 'flex');
@@ -466,9 +479,21 @@
                 link.href = renderer.domElement.toDataURL('image/png'); link.click();
             });
 
-            // Side Panel Controls
             const bindClick = (id, fn) => { const el = document.getElementById(id); if(el) el.addEventListener('click', fn); };
-            bindClick('bg-sky', () => setBG('sky')); bindClick('bg-solid', () => setBG('solid')); bindClick('bg-hdr', () => setBG('hdr'));
+            bindClick('bg-sky', () => setBG('sky')); 
+            bindClick('bg-solid', () => setBG('solid')); 
+            bindClick('bg-hdr', () => setBG('hdr'));
+            
+            // [수정] HDR 업로드 버튼 및 인풋 연동
+            const hdrManualBtn = document.getElementById('btn-upload-hdr-manual');
+            const hdrInput = document.getElementById('hdr-input');
+            hdrManualBtn.addEventListener('click', () => hdrInput.click());
+            hdrInput.addEventListener('change', (e) => {
+                if(e.target.files && e.target.files[0]) {
+                    loadHDR(URL.createObjectURL(e.target.files[0]));
+                }
+            });
+
             document.getElementById('bg-color-val').addEventListener('input', (e) => { bgColor.set(e.target.value); if(state.bg==='solid') scene.background=bgColor; });
             document.getElementById('toon-weight').addEventListener('input', (e) => {
                 if(model) { const v = parseFloat(e.target.value); model.traverse(c=>{ if(c.userData.isEdge) { c.visible=v>0; c.material.opacity=Math.min(v/2,1); } }); }
@@ -484,19 +509,17 @@
             bindClick('axis-flip', () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); });
             document.getElementById('cut-slider').addEventListener('input', (e)=>updateClipPlane(e.target.value));
 
-            // AI
             bindClick('btn-ai-analyze', getAIAnalysis);
             bindClick('btn-ai-tts', playAudioGuide);
         }
 
-        // --- Render Loop ---
         function animate() {
             renderer.setAnimationLoop(() => {
                 if(renderer.xr.isPresenting) {
-                    handleVRInput();
+                    // VR Logic
                 } else {
                     if(state.cam === 'iso' || isMobile || !document.pointerLockElement) {
-                        oControls.update();
+                        if(oControls.enabled) oControls.update();
                     }
                     if(document.pointerLockElement) {
                         const delta = 0.016;
@@ -533,43 +556,63 @@
             });
         }
 
-        // --- Helpers ---
         function setBG(type) { state.bg = type; ['bg-sky','bg-solid','bg-hdr'].forEach(id => document.getElementById(id).classList.toggle('active', id===`bg-${type}`)); document.getElementById('solid-picker-row').style.display = type==='solid'?'flex':'none'; document.getElementById('hdr-upload-row').style.display = type==='hdr'?'flex':'none'; if(type==='sky'){scene.background=skyColor; scene.environment=envTexture;} else if(type==='solid'){scene.background=bgColor; scene.environment=null;} else {scene.background=envTexture; scene.environment=envTexture;} }
-        function toggleMode(mode) { state.mode = mode; document.getElementById('mode-render').classList.toggle('active', mode==='render'); document.getElementById('mode-white').classList.toggle('active', mode!=='render'); if(mode==='white'){setBG(state.bg); ambientLight.intensity=1.2;} else {scene.background=new THREE.Color(0xffffff); ambientLight.intensity=2.0;} if(model) model.traverse(c=>{ if(c.isMesh) { c.material = mode==='render' ? originalMaterials.get(c.uuid) : new THREE.MeshBasicMaterial({color:0xffffff, side:2}); applyClipping(c.material); c.children.forEach(ch=>{if(ch.userData.isEdge) ch.visible=mode==='white'&&document.getElementById('toon-weight').value>0;}); } }); }
+        
+        function toggleMode(mode) { 
+            state.mode = mode; 
+            document.getElementById('mode-render').classList.toggle('active', mode==='render'); 
+            document.getElementById('mode-white').classList.toggle('active', mode!=='render'); 
+            if(mode==='white'){setBG(state.bg); ambientLight.intensity=1.2;} else {scene.background=new THREE.Color(0xffffff); ambientLight.intensity=2.0;} 
+            if(model) model.traverse(c=>{ 
+                if(c.isMesh) { 
+                    c.material = mode==='render' ? originalMaterials.get(c.uuid) : new THREE.MeshBasicMaterial({color:0xffffff, side:2}); 
+                    applyClipping(c.material); 
+                    c.children.forEach(ch=>{if(ch.userData.isEdge) ch.visible=mode==='white'&&document.getElementById('toon-weight').value>0;}); 
+                } 
+            }); 
+        }
+
         function setupEvents() {
-            window.addEventListener('resize', () => { renderer.setSize(window.innerWidth, window.innerHeight); perspCamera.aspect = window.innerWidth/window.innerHeight; perspCamera.updateProjectionMatrix(); });
-            document.addEventListener('keydown', e => { switch(e.code) { case 'KeyW': move.f=1; break; case 'KeyS': move.b=1; break; case 'KeyA': move.l=1; break; case 'KeyD': move.r=1; break; case 'KeyE': move.u=1; break; case 'KeyQ': move.d=1; break; case 'ShiftLeft': speedMult=2; break; } });
-            document.addEventListener('keyup', e => { switch(e.code) { case 'KeyW': move.f=0; break; case 'KeyS': move.b=0; break; case 'KeyA': move.l=0; break; case 'KeyD': move.r=0; break; case 'KeyE': move.u=0; break; case 'KeyQ': move.d=0; break; case 'ShiftLeft': speedMult=1; break; } });
-            document.addEventListener('mousedown', (e) => { if(!isMobile && document.getElementById('landing-page').style.display === 'none' && !e.target.closest('button, .panel, input')) { isLockPending=true; pControls.lock(); } });
+            window.addEventListener('resize', () => { 
+                renderer.setSize(window.innerWidth, window.innerHeight); 
+                perspCamera.aspect = window.innerWidth/window.innerHeight; 
+                perspCamera.updateProjectionMatrix(); 
+                // Ortho Camera 업데이트
+                const frustumSize = modelMaxDim * 2;
+                const aspect = window.innerWidth / window.innerHeight;
+                orthoCamera.left = -frustumSize * aspect / 2;
+                orthoCamera.right = frustumSize * aspect / 2;
+                orthoCamera.top = frustumSize / 2;
+                orthoCamera.bottom = -frustumSize / 2;
+                orthoCamera.updateProjectionMatrix();
+            });
+            document.addEventListener('keydown', e => { 
+                switch(e.code) { 
+                    case 'KeyW': move.f=1; break; case 'KeyS': move.b=1; break; case 'KeyA': move.l=1; break; case 'KeyD': move.r=1; break; 
+                    case 'KeyE': move.u=1; break; case 'KeyQ': move.d=1; break; case 'ShiftLeft': speedMult=2; break; 
+                    case 'Space': if(state.cam==='walk' && isGrounded) { velocity.y = 7; isGrounded=false; } break;
+                } 
+            });
+            document.addEventListener('keyup', e => { 
+                switch(e.code) { 
+                    case 'KeyW': move.f=0; break; case 'KeyS': move.b=0; break; case 'KeyA': move.l=0; break; case 'KeyD': move.r=0; 
+                    case 'KeyE': move.u=0; break; case 'KeyQ': move.d=0; break; case 'ShiftLeft': speedMult=1; break; 
+                } 
+            });
+            document.addEventListener('mousedown', (e) => { 
+                if(!isMobile && document.getElementById('landing-page').style.display === 'none' && !e.target.closest('button, .panel, input') && state.cam !== 'iso') { 
+                    pControls.lock(); 
+                } 
+            });
         }
+
         function makePanelsDraggable() { document.querySelectorAll('.panel').forEach(p => { const h=p.querySelector('.panel-header'); let isD=false, sx, sy, il, it; h.onmousedown=(e)=>{ isD=true; sx=e.clientX; sy=e.clientY; il=p.offsetLeft; it=p.offsetTop; document.onmousemove=(e)=>{ if(isD) { p.style.left=(il+e.clientX-sx)+'px'; p.style.top=(it+e.clientY-sy)+'px'; } }; document.onmouseup=()=>{ isD=false; document.onmousemove=null; }; }; }); }
-        function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.style.opacity=1; setTimeout(()=>t.style.opacity=0, 3000); }
+        function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.style.opacity=1; setTimeout(()=>t.style.opacity=0, 2000); }
         
-        function handleVRInput() {
-            const session = renderer.xr.getSession(); if(!session) return;
-            for(const source of session.inputSources) {
-                if(source.handedness === 'right' && source.gamepad) {
-                    const axes = source.gamepad.axes; const buttons = source.gamepad.buttons;
-                    const headDir = new THREE.Vector3(); renderer.xr.getCamera(perspCamera).getWorldDirection(headDir);
-                    const sideDir = new THREE.Vector3().crossVectors(headDir, new THREE.Vector3(0,1,0)).normalize();
-                    const moveDir = headDir.clone().multiplyScalar(-axes[3]).add(sideDir.clone().multiplyScalar(axes[2]));
-                    moveDir.y = 0; cameraRig.position.add(moveDir.multiplyScalar(0.1));
-                    if(buttons[5].pressed) switchCam(state.cam==='fly'?'walk':'fly');
-                    if(buttons[0].pressed) {
-                        tempMatrix.identity().extractRotation(controllerR.matrixWorld);
-                        raycaster.ray.origin.setFromMatrixPosition(controllerR.matrixWorld);
-                        raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
-                        const hits = raycaster.intersectObjects(modelGroup.children, true);
-                        if(hits.length>0) cameraRig.position.copy(hits[0].point);
-                    }
-                }
-            }
-        }
-        
-        // AI Utils
         async function fetchWithRetry(url, options) { try { const r=await fetch(url, options); if(r.ok) return await r.json(); } catch(e){} return null; }
-        async function getAIAnalysis() { if(!model) return; document.getElementById('btn-ai-analyze').innerText="..."; try { renderer.render(scene, activeCamera); const b64 = renderer.domElement.toDataURL('image/png').split(',')[1]; const p = "Analyze this architecture. 2 sentences Korean."; const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:p},{inlineData:{mimeType:"image/png", data:b64}}]}]})}); lastAIAnalysis = res?.candidates?.[0]?.content?.parts?.[0]?.text || "Error"; document.getElementById('ai-response').innerText = lastAIAnalysis; document.getElementById('btn-ai-tts').style.display='block'; } catch(e){} finally { document.getElementById('btn-ai-analyze').innerText="ANALYZE"; } }
+        async function getAIAnalysis() { if(!model) return; document.getElementById('btn-ai-analyze').innerText="..."; try { renderer.render(scene, activeCamera); const b64 = renderer.domElement.toDataURL('image/png').split(',')[1]; const p = "분석해줘. 한국어 2문장."; const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:p},{inlineData:{mimeType:"image/png", data:b64}}]}]})}); lastAIAnalysis = res?.candidates?.[0]?.content?.parts?.[0]?.text || "분석 실패"; document.getElementById('ai-response').innerText = lastAIAnalysis; document.getElementById('btn-ai-tts').style.display='block'; } catch(e){} finally { document.getElementById('btn-ai-analyze').innerText="ANALYZE"; } }
         async function playAudioGuide() { if(!lastAIAnalysis) return; try { const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:lastAIAnalysis}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:"Aoede"}}}}, model:"gemini-2.5-flash-preview-tts"})}); const blob = pcmToWav(res.candidates[0].content.parts[0].inlineData.data, 24000); new Audio(URL.createObjectURL(blob)).play(); } catch(e){} }
+        function pcmToWav(b64, rate) { const b=Uint8Array.from(atob(b64), c=>c.charCodeAt(0)); const h=new ArrayBuffer(44); const v=new DataView(h); const s=(str,off)=>{for(let i=0;i<str.length;i++)v.setUint8(off+i,str.charCodeAt(i))}; s('RIFF',0); v.setUint32(4,36+b.length,true); s('WAVE',8); s('fmt ',12); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true); v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); s('data',36); v.setUint32(40,b.length,true); return new Blob([h, b], {type:'audio/wav'}); }
     </script>
 </body>
 </html>
