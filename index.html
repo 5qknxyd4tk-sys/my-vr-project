@@ -80,7 +80,7 @@
         .row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; gap: 10px; }
         .label { font-weight: 600; color: #444; }
 
-        /* 상단 툴바 (스크롤 가능) */
+        /* 상단 툴바 */
         #top-bar { 
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%); 
             display: flex; gap: 6px; padding: 8px; background: var(--bg-light);
@@ -112,13 +112,14 @@
         }
         #toast {
             position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 25px;
-            opacity: 0; transition: opacity 0.4s; font-size: 13px; pointer-events: none; z-index: 100;
+            background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 25px;
+            opacity: 0; transition: opacity 0.4s; font-size: 13px; pointer-events: none; z-index: 1000;
+            text-align: center;
         }
         #mobile-menu-btn { display: none; width:44px; height:44px; border-radius:12px; font-size:18px; position: absolute; top: 20px; right: 20px; z-index: 101; }
 
-        /* AR 버튼 숨김 기본값 */
         #btn-ar { display: none; color: #FF2D55; border-color: #FF2D55; }
+        #btn-gyro.active { background: #5856D6; border-color: #5856D6; color: white; }
 
         @media (max-width: 768px) {
             .panel { display: none; }
@@ -143,7 +144,6 @@
             <p style="font-size:13px; color:#888; margin-top:8px;">클릭하여 GLB 모델을 선택하세요</p>
             <input type="file" id="file-input" accept=".glb,.gltf" style="display:none;">
         </div>
-        <div id="loader" style="display:none; margin-top:24px; font-weight:600; color:var(--primary);"></div>
     </div>
 
     <div id="ui-layer" style="display:none;">
@@ -159,12 +159,12 @@
             <button id="cam-iso">ISO</button>
             <span style="width:1px; height:16px; background:#ddd; margin:auto 4px; flex-shrink:0;"></span>
             <button id="btn-reset">RESET</button>
+            <button id="btn-gyro">GYRO</button>
             <button id="btn-ar">AR VIEW</button>
             <button id="btn-help">GUIDE</button>
             <button id="btn-capture" style="color:var(--primary)">CAPTURE</button>
         </div>
 
-        <!-- 모바일 이동 패드 -->
         <div id="mobile-dpad">
             <div class="dbtn" style="grid-area: up;" id="d-up">↑</div>
             <div class="dbtn" style="grid-area: left;" id="d-left">←</div>
@@ -179,9 +179,8 @@
                     <span class="key">W A S D</span><span>이동</span>
                     <span class="key">E / Q</span><span>상승 / 하강</span>
                     <span class="key">SHIFT</span><span>가속</span>
-                    <span class="key">SPACE</span><span>Walk 점프</span>
-                    <span class="key">MOUSE</span><span>시점 회전</span>
-                    <span class="key">ESC</span><span>고정 해제</span>
+                    <span class="key">SPACE</span><span>점프 (Walk)</span>
+                    <span class="key">GYRO</span><span>기기 회전 시점 조작</span>
                 </div>
             </div>
         </div>
@@ -206,11 +205,11 @@
                     <input type="color" id="bg-color-val" value="#ffffff" style="width:40px; height:24px; border:none; padding:0; background:none; cursor:pointer;">
                 </div>
                 <div class="row">
-                    <span class="label">Light Intensity</span>
+                    <span class="label">Intensity</span>
                     <input type="range" id="sun-intensity" min="0" max="10" step="0.1" value="3.5">
                 </div>
                 <div class="row">
-                    <span class="label">Light Angle</span>
+                    <span class="label">Angle</span>
                     <input type="range" id="sun-angle" min="0" max="360" value="145">
                 </div>
             </div>
@@ -250,7 +249,6 @@
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-        import { ARButton } from 'three/addons/webxr/ARButton.js';
 
         let scene, renderer, perspCamera, orthoCamera, activeCamera, pControls, oControls;
         let model = null, modelGroup = new THREE.Group();
@@ -258,18 +256,21 @@
         let envTexture, bgColor = new THREE.Color(0xffffff), skyColor = new THREE.Color(0x87CEEB);
         let sunLight, hemiLight, ambientLight;
         
-        // 카메라 초기 상태 저장용
         let initialCamPos = new THREE.Vector3(20, 20, 20);
         let initialCamRot = new THREE.Euler();
 
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 100);
         let clipAxis = 'y', clipNegate = true, cutLineColor = new THREE.Color(0x007AFF);
-        const state = { mode: 'render', cam: 'fly', bg: 'sky', cutEnabled: true };
+        const state = { mode: 'render', cam: 'fly', bg: 'sky', cutEnabled: true, gyro: false };
 
         const velocity = new THREE.Vector3(), direction = new THREE.Vector3(), move = { f:0, b:0, l:0, r:0, u:0, d:0 };
         let speedMult = 1;
         const raycaster = new THREE.Raycaster();
+
+        // 자이로용 변수들
+        let gyroQuaternion = new THREE.Quaternion();
+        const baseQuaternion = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // 기기 보정
 
         init();
         animate();
@@ -287,7 +288,7 @@
             renderer.localClippingEnabled = true; 
             renderer.toneMapping = THREE.ReinhardToneMapping;
             renderer.toneMappingExposure = 1.3;
-            renderer.xr.enabled = true; // AR 지원 활성화
+            renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
 
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -307,10 +308,8 @@
 
             ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
             scene.add(ambientLight);
-
             hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 1.2);
             scene.add(hemiLight);
-
             sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
             sunLight.position.set(30, 50, 30);
             sunLight.castShadow = true;
@@ -343,14 +342,8 @@
                         c.castShadow = true; c.receiveShadow = true;
                         originalMaterials.set(c.uuid, c.material);
                         applyClipping(c.material);
-                        
                         const edges = new THREE.EdgesGeometry(c.geometry, 25);
-                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ 
-                            color: 0x000000,
-                            polygonOffset: true,
-                            polygonOffsetFactor: -1,
-                            polygonOffsetUnits: -1
-                        }));
+                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
                         line.material.clippingPlanes = [clipPlane];
                         line.visible = false; line.userData.isEdge = true;
                         c.add(line); 
@@ -363,18 +356,15 @@
                 updateClipPlane(slider.value);
                 document.getElementById('landing-page').style.display = 'none';
                 document.getElementById('ui-layer').style.display = 'block';
-                
-                // 초기 상태 저장
                 oControls.target.set(0, 0, 0);
                 initialCamPos.copy(perspCamera.position);
                 initialCamRot.copy(perspCamera.rotation);
-
-                showToast("Model Loaded Successfully");
+                showToast("모델이 로드되었습니다.");
             });
         }
 
         function loadHDR(url) {
-            showToast("Loading Environment HDR...");
+            showToast("환경 정보를 불러오는 중...");
             new RGBELoader().load(url, (texture) => {
                 texture.mapping = THREE.EquirectangularReflectionMapping;
                 envTexture = texture;
@@ -382,7 +372,7 @@
                     scene.environment = envTexture;
                     if (state.bg === 'sky') scene.background = envTexture;
                 }
-                showToast("HDR Applied");
+                showToast("HDR이 적용되었습니다.");
             });
         }
 
@@ -401,45 +391,28 @@
             if(clipAxis === 'z') clipPlane.normal.z = dir;
         }
 
-        const whiteMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffffff, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide
-        });
+        const whiteMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide });
 
         function toggleMode(mode) {
             state.mode = mode;
             const isRender = mode === 'render';
             document.getElementById('mode-render').classList.toggle('active', isRender);
             document.getElementById('mode-white').classList.toggle('active', !isRender);
-            
             if (!isRender) {
                 scene.background = new THREE.Color(0xffffff);
                 scene.environment = null;
-                ambientLight.intensity = 1.8;
-                hemiLight.intensity = 2.0;
-                sunLight.intensity = 2.5;
+                ambientLight.intensity = 1.8; hemiLight.intensity = 2.0; sunLight.intensity = 2.5;
             } else {
                 scene.background = (state.bg === 'sky') ? (envTexture && envTexture.isTexture ? envTexture : skyColor) : bgColor;
                 scene.environment = envTexture;
-                ambientLight.intensity = 0.8;
-                hemiLight.intensity = 1.2;
-                sunLight.intensity = 3.5;
+                ambientLight.intensity = 0.8; hemiLight.intensity = 1.2; sunLight.intensity = 3.5;
             }
-
             if(!model) return;
             model.traverse(c => {
                 if(c.isMesh) {
-                    if(isRender) {
-                        c.material = originalMaterials.get(c.uuid);
-                    } else {
-                        c.material = whiteMaterial.clone();
-                    }
+                    c.material = isRender ? originalMaterials.get(c.uuid) : whiteMaterial.clone();
                     applyClipping(c.material);
-                    c.children.forEach(ch => {
-                        if(ch.userData.isEdge) {
-                            ch.visible = !isRender;
-                            ch.material.color.set(0x000000);
-                        }
-                    });
+                    c.children.forEach(ch => { if(ch.userData.isEdge) { ch.visible = !isRender; ch.material.color.set(0x000000); } });
                 }
             });
         }
@@ -451,7 +424,6 @@
                 orthoCamera.left = -30*aspect; orthoCamera.right = 30*aspect; orthoCamera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
-
             document.addEventListener('keydown', e => {
                 switch(e.code) {
                     case 'KeyW': move.f = 1; break; case 'KeyS': move.b = 1; break;
@@ -470,10 +442,22 @@
                 }
             });
             
+            // 자이로 이벤트 핸들러
+            window.addEventListener('deviceorientation', (e) => {
+                if (!state.gyro) return;
+                const alpha = e.alpha ? THREE.MathUtils.degToRad(e.alpha) : 0;
+                const beta = e.beta ? THREE.MathUtils.degToRad(e.beta) : 0;
+                const gamma = e.gamma ? THREE.MathUtils.degToRad(e.gamma) : 0;
+                
+                const euler = new THREE.Euler(beta, alpha, -gamma, 'YXZ');
+                gyroQuaternion.setFromEuler(euler);
+                perspCamera.quaternion.copy(baseQuaternion).multiply(gyroQuaternion);
+            });
+
             if(!isMobile) {
                 document.addEventListener('click', (e) => {
                     if(e.target.closest('button') || e.target.closest('input') || e.target.closest('.panel')) return;
-                    if(state.cam !== 'iso' && !pControls.isLocked) {
+                    if(state.cam !== 'iso' && !pControls.isLocked && !state.gyro) {
                         try { pControls.lock(); } catch (err) { }
                     }
                 });
@@ -492,103 +476,96 @@
         function switchCam(mode) {
             state.cam = mode;
             ['cam-fly','cam-walk','cam-iso'].forEach(id => document.getElementById(id).classList.toggle('active', id === `cam-${mode}`));
-            
             const isIso = mode === 'iso';
             const isWalk = mode === 'walk';
             document.getElementById('crosshair').style.display = isIso ? 'none' : 'block';
-            
-            // 모바일 전용 D-pad 및 AR 버튼 가시성 제어
             if(isMobile) {
                 document.getElementById('mobile-dpad').classList.toggle('active', !isIso);
                 document.getElementById('btn-ar').style.display = isWalk ? 'inline-block' : 'none';
             }
-
             if(isIso) {
-                activeCamera = orthoCamera;
-                oControls.object = orthoCamera;
-                oControls.enabled = true;
+                activeCamera = orthoCamera; oControls.object = orthoCamera; oControls.enabled = true;
                 if(!isMobile && pControls.isLocked) pControls.unlock();
+                disableGyro();
             } else {
-                activeCamera = perspCamera;
-                oControls.object = perspCamera;
-                oControls.enabled = isMobile ? true : false;
+                activeCamera = perspCamera; oControls.object = perspCamera; oControls.enabled = isMobile && !state.gyro ? true : false;
             }
-            showToast(`Mode: ${mode.toUpperCase()}`);
+            showToast(`모드: ${mode.toUpperCase()}`);
+        }
+
+        function toggleGyro() {
+            if (!isMobile) { showToast("자이로 모드는 모바일에서만 지원됩니다."); return; }
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission().then(state => {
+                    if (state === 'granted') applyGyroState();
+                    else showToast("센서 사용 권한이 필요합니다.");
+                }).catch(() => showToast("권한 요청에 실패했습니다."));
+            } else {
+                applyGyroState();
+            }
+        }
+
+        function applyGyroState() {
+            state.gyro = !state.gyro;
+            document.getElementById('btn-gyro').classList.toggle('active', state.gyro);
+            if (state.gyro) {
+                oControls.enabled = false;
+                showToast("자이로 뷰 활성화");
+            } else {
+                disableGyro();
+            }
+        }
+
+        function disableGyro() {
+            state.gyro = false;
+            if (document.getElementById('btn-gyro')) document.getElementById('btn-gyro').classList.remove('active');
+            if (isMobile && state.cam !== 'iso') oControls.enabled = true;
         }
 
         function setupUI() {
             document.getElementById('file-input').onchange = (e) => loadGLB(URL.createObjectURL(e.target.files[0]));
             document.getElementById('hdr-input').onchange = (e) => loadHDR(URL.createObjectURL(e.target.files[0]));
-            
             document.getElementById('mode-render').onclick = () => toggleMode('render');
             document.getElementById('mode-white').onclick = () => toggleMode('white');
             document.getElementById('cam-fly').onclick = () => switchCam('fly');
             document.getElementById('cam-walk').onclick = () => switchCam('walk');
             document.getElementById('cam-iso').onclick = () => switchCam('iso');
-
-            // 카메라 리셋 버튼
             document.getElementById('btn-reset').onclick = () => {
-                perspCamera.position.copy(initialCamPos);
-                perspCamera.rotation.copy(initialCamRot);
-                oControls.target.set(0, 0, 0);
-                velocity.set(0,0,0);
-                showToast("Camera Reset");
+                perspCamera.position.copy(initialCamPos); perspCamera.rotation.copy(initialCamRot);
+                oControls.target.set(0, 0, 0); velocity.set(0,0,0); showToast("카메라 리셋");
             };
-
-            // AR 모드 버튼
+            document.getElementById('btn-gyro').onclick = () => toggleGyro();
             document.getElementById('btn-ar').onclick = () => {
-                const sessionInit = { optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking', 'layers'] };
-                navigator.xr.requestSession('immersive-ar', sessionInit).then((session) => {
-                    renderer.xr.setSession(session);
-                }).catch(err => {
-                    showToast("AR Not Supported on this device");
+                if (!navigator.xr) { showToast("AR 미지원 브라우저입니다."); return; }
+                navigator.xr.isSessionSupported('immersive-ar').then(s => {
+                    if (s) navigator.xr.requestSession('immersive-ar', { optionalFeatures: ['local-floor', 'dom-overlay'], domOverlay: { root: document.body } }).then(s => renderer.xr.setSession(s));
+                    else showToast("AR을 사용할 수 없습니다.");
                 });
             };
-            
             document.getElementById('btn-help').onclick = () => document.getElementById('help-panel').style.display = 'flex';
             document.getElementById('close-help').onclick = () => document.getElementById('help-panel').style.display = 'none';
-
             document.getElementById('btn-capture').onclick = () => {
                 renderer.render(scene, activeCamera);
                 const dataURL = renderer.domElement.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = 'Explorer_Screenshot.png'; link.href = dataURL; link.click();
-                showToast("Screenshot Saved!");
+                const link = document.createElement('a'); link.download = 'capture.png'; link.href = dataURL; link.click();
+                showToast("스크린샷 저장");
             };
-
             document.getElementById('bg-hdri').onclick = (e) => { 
-                state.bg='sky'; 
-                if (state.mode === 'render') scene.background = envTexture && envTexture.isTexture ? envTexture : skyColor;
+                state.bg='sky'; if (state.mode === 'render') scene.background = envTexture && envTexture.isTexture ? envTexture : skyColor;
                 e.target.classList.add('active'); document.getElementById('bg-color').classList.remove('active');
-                document.getElementById('bg-color-picker-row').style.display='none';
-                document.getElementById('hdr-load-row').style.display='flex';
             };
             document.getElementById('bg-color').onclick = (e) => { 
                 state.bg='color'; if (state.mode === 'render') scene.background = bgColor;
-                document.getElementById('bg-color-picker-row').style.display='flex';
-                document.getElementById('hdr-load-row').style.display='none';
                 e.target.classList.add('active'); document.getElementById('bg-hdri').classList.remove('active');
             };
-            document.getElementById('bg-color-val').oninput = (e) => { 
-                bgColor.set(e.target.value); if (state.mode === 'render' && state.bg === 'color') scene.background = bgColor; 
-            };
-            
+            document.getElementById('bg-color-val').oninput = (e) => { bgColor.set(e.target.value); if (state.mode === 'render' && state.bg === 'color') scene.background = bgColor; };
             document.getElementById('sun-intensity').oninput = (e) => sunLight.intensity = parseFloat(e.target.value);
             document.getElementById('sun-angle').oninput = (e) => {
                 const rad = e.target.value * (Math.PI/180);
                 sunLight.position.x = Math.sin(rad) * 40; sunLight.position.z = Math.cos(rad) * 40;
             };
-
-            document.getElementById('cut-toggle').onclick = (e) => {
-                state.cutEnabled = !state.cutEnabled; renderer.localClippingEnabled = state.cutEnabled;
-                e.target.classList.toggle('active');
-            };
-
-            const setAxis = (ax) => {
-                clipAxis = ax;
-                ['axis-x', 'axis-y', 'axis-z'].forEach(id => document.getElementById(id).classList.toggle('active', id === `axis-${ax}`));
-                updateClipPlane(document.getElementById('cut-slider').value);
-            };
+            document.getElementById('cut-toggle').onclick = (e) => { state.cutEnabled = !state.cutEnabled; renderer.localClippingEnabled = state.cutEnabled; e.target.classList.toggle('active'); };
+            const setAxis = (ax) => { clipAxis = ax; ['axis-x', 'axis-y', 'axis-z'].forEach(id => document.getElementById(id).classList.toggle('active', id === `axis-${ax}`)); updateClipPlane(document.getElementById('cut-slider').value); };
             document.getElementById('axis-x').onclick = () => setAxis('x');
             document.getElementById('axis-y').onclick = () => setAxis('y');
             document.getElementById('axis-z').onclick = () => setAxis('z');
@@ -600,76 +577,39 @@
             document.querySelectorAll('.panel').forEach(panel => {
                 const header = panel.querySelector('.panel-header');
                 const toggle = panel.querySelector('.toggle-btn');
-                if(toggle) {
-                    toggle.onclick = (e) => {
-                        e.stopPropagation(); panel.classList.toggle('minimized');
-                        toggle.innerText = panel.classList.contains('minimized') ? '＋' : '－';
-                    };
-                }
+                if(toggle) toggle.onclick = (e) => { e.stopPropagation(); panel.classList.toggle('minimized'); toggle.innerText = panel.classList.contains('minimized') ? '＋' : '－'; };
                 let isDragging = false, startX, startY, initLeft, initTop;
-                header.onmousedown = (e) => {
-                    isDragging = true; startX = e.clientX; startY = e.clientY;
-                    initLeft = panel.offsetLeft; initTop = panel.offsetTop;
-                    document.onmousemove = (e) => {
-                        if(!isDragging) return;
-                        panel.style.left = (initLeft + e.clientX - startX) + 'px';
-                        panel.style.top = (initTop + e.clientY - startY) + 'px';
-                    };
-                    document.onmouseup = () => { isDragging = false; document.onmousemove = null; };
-                };
+                header.onmousedown = (e) => { isDragging = true; startX = e.clientX; startY = e.clientY; initLeft = panel.offsetLeft; initTop = panel.offsetTop; document.onmousemove = (e) => { if(!isDragging) return; panel.style.left = (initLeft + e.clientX - startX) + 'px'; panel.style.top = (initTop + e.clientY - startY) + 'px'; }; document.onmouseup = () => { isDragging = false; document.onmousemove = null; }; };
             });
         }
 
         function animate() {
             renderer.setAnimationLoop(() => {
-                if(oControls.enabled) oControls.update();
+                if(oControls.enabled && !state.gyro) oControls.update();
 
                 if(state.cam==='fly'||state.cam==='walk') {
                     const delta = 0.016;
-                    velocity.x -= velocity.x * 10.0 * delta;
-                    velocity.z -= velocity.z * 10.0 * delta;
-                    velocity.y -= velocity.y * 10.0 * delta;
-
-                    direction.z = Number(move.f) - Number(move.b);
-                    direction.x = Number(move.r) - Number(move.l);
-                    direction.normalize();
-
+                    velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta; velocity.y -= velocity.y * 10.0 * delta;
+                    direction.z = Number(move.f) - Number(move.b); direction.x = Number(move.r) - Number(move.l); direction.normalize();
                     const speed = (state.cam === 'walk' ? 40 : 60) * speedMult;
+                    if (move.f || move.b || move.l || move.r) { velocity.z -= direction.z * speed * delta; velocity.x -= direction.x * speed * delta; }
                     
-                    if (move.f || move.b || move.l || move.r) {
-                        velocity.z -= direction.z * speed * delta;
-                        velocity.x -= direction.x * speed * delta;
-                    }
-
                     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(activeCamera.quaternion);
                     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(activeCamera.quaternion);
-                    
                     if (state.cam === 'walk') { forward.y = 0; right.y = 0; forward.normalize(); right.normalize(); }
-
+                    
                     activeCamera.position.addScaledVector(forward, -velocity.z * delta);
                     activeCamera.position.addScaledVector(right, -velocity.x * delta);
-
-                    if(state.cam === 'fly') {
-                        if(move.u) velocity.y += speed * delta; 
-                        if(move.d) velocity.y -= speed * delta; 
-                        activeCamera.position.y += velocity.y * delta;
-                    }
                     
+                    if(state.cam === 'fly') { if(move.u) velocity.y += speed * delta; if(move.d) velocity.y -= speed * delta; activeCamera.position.y += velocity.y * delta; }
                     if(state.cam === 'walk') {
                         velocity.y -= 9.8 * 6.0 * delta;
                         raycaster.set(activeCamera.position, new THREE.Vector3(0, -1, 0));
                         const intersects = raycaster.intersectObjects(modelGroup.children, true);
-                        if (intersects.length > 0) {
-                            const dist = intersects[0].distance;
-                            if (dist < 1.7) { activeCamera.position.y = intersects[0].point.y + 1.7; velocity.y = Math.max(0, velocity.y); }
-                        }
+                        if (intersects.length > 0) { const dist = intersects[0].distance; if (dist < 1.7) { activeCamera.position.y = intersects[0].point.y + 1.7; velocity.y = Math.max(0, velocity.y); } }
                         activeCamera.position.y += velocity.y * delta;
                     }
-
-                    if (isMobile) {
-                        const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(activeCamera.quaternion);
-                        oControls.target.copy(activeCamera.position).add(lookDir);
-                    }
+                    if (isMobile && !state.gyro) { const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(activeCamera.quaternion); oControls.target.copy(activeCamera.position).add(lookDir); }
                 }
                 renderer.render(scene, activeCamera);
             });
@@ -684,7 +624,7 @@
         function showToast(msg) {
             const t = document.getElementById('toast');
             t.innerText = msg; t.style.opacity = 1;
-            setTimeout(() => t.style.opacity = 0, 3000);
+            setTimeout(() => t.style.opacity = 0, 4000);
         }
     </script>
 </body>
