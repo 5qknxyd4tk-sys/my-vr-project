@@ -3,113 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ARCHI-VIEWER: AR & UX</title>
+    <title>3D GLB Explorer Pro</title>
     <style>
-        /* --- 기본 스타일 --- */
-        body { margin: 0; overflow: hidden; background-color: #111; font-family: 'Segoe UI', sans-serif; color: white; user-select: none; -webkit-user-select: none; }
-        
+        :root {
+            --primary: #007AFF;
+            --bg-light: rgba(255, 255, 255, 0.85);
+            --border: rgba(0, 0, 0, 0.08);
+            --text: #333;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #ffffff; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            color: var(--text); 
+            user-select: none; 
+            -webkit-user-select: none; 
+            touch-action: none;
+        }
+
         /* 로딩 화면 */
         #landing-page {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: linear-gradient(135deg, #1a1a1a, #000); z-index: 200;
+            background: #fff; z-index: 200;
         }
         .upload-box {
-            border: 1px dashed #666; padding: 40px; border-radius: 12px; text-align: center;
-            background: rgba(255,255,255,0.02); cursor: pointer; transition: 0.3s;
+            border: 2px dashed #ddd; padding: 60px; border-radius: 24px; text-align: center;
+            background: #fafafa; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+        .upload-box:hover { border-color: var(--primary); background: #f0f7ff; transform: translateY(-2px); }
         
-        /* --- 드래거블 패널 (PC 좌측 정렬) --- */
+        /* UI 패널 */
         .panel {
-            position: absolute; left: 20px; width: 220px;
-            background: rgba(20, 20, 20, 0.9); backdrop-filter: blur(12px);
-            border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.1);
-            display: flex; flex-direction: column; gap: 10px; transition: height 0.3s; overflow: hidden;
+            position: absolute; left: 20px; width: 240px;
+            background: var(--bg-light); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-radius: 16px; box-shadow: var(--shadow);
+            border: 1px solid rgba(255,255,255,0.4);
+            display: flex; flex-direction: column; transition: all 0.3s; overflow: hidden;
+            z-index: 20;
         }
         
-        /* 패널 헤더 (드래그 핸들) */
         .panel-header {
-            padding: 10px; background: rgba(255,255,255,0.05); cursor: move;
+            padding: 12px 16px; background: rgba(0,0,0,0.03); cursor: move;
             display: flex; justify-content: space-between; align-items: center;
-            font-weight: bold; font-size: 12px; color: #ddd; border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-weight: 700; font-size: 11px; color: #666; letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
         }
-        .panel-header:hover { background: rgba(255,255,255,0.1); color: white; }
-        .panel-content { padding: 15px; display: flex; flex-direction: column; gap: 12px; }
+        .panel-content { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
         .panel.minimized .panel-content { display: none; }
         
-        /* 초기 위치 */
         #env-panel { top: 80px; }
-        #cut-panel { top: 400px; } /* 환경 패널 아래 배치 */
+        #cut-panel { top: 400px; }
 
-        /* 공통 UI 요소 */
-        button {
-            background: #333; border: none; color: #ccc; padding: 6px 10px; border-radius: 4px;
-            cursor: pointer; font-size: 11px; font-weight: 600; flex-shrink: 0;
+        /* 도움말 패널 */
+        #help-panel {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 300px; display: none;
         }
-        button:hover { background: #555; color: white; }
-        button.active { background: #00d2ff; color: #000; }
-        button.toggle-btn { width: 20px; height: 20px; padding: 0; line-height: 1; }
+        .help-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; font-size: 12px; }
+        .key { background: #eee; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-align: center; border-bottom: 2px solid #ccc; }
 
-        input[type=range] { width: 100%; height: 4px; accent-color: #00d2ff; cursor: pointer; }
-        input[type=color] { border: none; width: 100%; height: 25px; background: none; padding: 0; }
-        .row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #aaa; gap: 8px; }
-        .label { min-width: 60px; text-align: left; }
+        /* 컨트롤 요소 */
+        button {
+            background: #fff; border: 1px solid var(--border); color: #555; padding: 8px 12px; border-radius: 8px;
+            cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            white-space: nowrap;
+        }
+        button:hover { background: #f8f9fa; border-color: #ccc; color: #000; }
+        button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        input[type=range] { width: 100%; height: 4px; accent-color: var(--primary); cursor: pointer; }
+        .row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; gap: 10px; }
+        .label { font-weight: 600; color: #444; }
 
         /* 상단 툴바 (스크롤 가능) */
         #top-bar { 
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%); 
-            display: flex; gap: 8px; padding: 8px 15px; background: rgba(20,20,20,0.8);
-            border-radius: 30px; backdrop-filter: blur(5px); z-index: 10;
-            max-width: 90%; overflow-x: auto; white-space: nowrap;
+            display: flex; gap: 6px; padding: 8px; background: var(--bg-light);
+            border-radius: 18px; backdrop-filter: blur(12px); z-index: 100;
+            box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.5);
+            max-width: 95vw; overflow-x: auto; -webkit-overflow-scrolling: touch;
         }
         #top-bar::-webkit-scrollbar { display: none; }
 
-        /* --- 모바일 전용 컨트롤 (슬라이더) --- */
-        #mobile-controls {
-            display: none; position: absolute; right: 20px; bottom: 40px; 
-            height: 200px; width: 60px; z-index: 50; flex-direction: column; align-items: center;
+        /* 모바일 이동 패드 */
+        #mobile-dpad {
+            display: none; position: absolute; left: 30px; bottom: 30px;
+            width: 140px; height: 140px; z-index: 100;
+            grid-template-areas: ". up ." "left . right" ". down .";
+            gap: 10px;
         }
-        /* 세로 슬라이더 커스텀 */
-        #move-slider {
-            -webkit-appearance: none; appearance: none;
-            width: 200px; height: 40px; background: rgba(0,0,0,0.5); 
-            border-radius: 20px; transform: rotate(-90deg); transform-origin: center;
-            border: 1px solid rgba(255,255,255,0.2);
+        .dbtn {
+            width: 44px; height: 44px; background: var(--bg-light); border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            border: 1px solid var(--border); box-shadow: var(--shadow);
+            font-size: 20px; color: var(--primary); cursor: pointer;
         }
-        #move-slider::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 40px; height: 40px; border-radius: 50%;
-            background: #00d2ff; box-shadow: 0 0 10px #00d2ff;
-        }
-        .control-label {
-            position: absolute; bottom: -25px; font-size: 10px; color: #aaa; text-align: center; width: 100%;
-        }
+        .dbtn:active { background: var(--primary); color: white; }
 
-        /* 기타 */
         #crosshair {
-            position: absolute; top: 50%; left: 50%; width: 4px; height: 4px;
-            background: #00d2ff; border-radius: 50%; transform: translate(-50%, -50%);
-            pointer-events: none; display: none; box-shadow: 0 0 4px #00d2ff; z-index: 1;
+            position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+            background: var(--primary); border-radius: 50%; transform: translate(-50%, -50%);
+            pointer-events: none; display: none; box-shadow: 0 0 10px rgba(0,122,255,0.5); z-index: 1;
         }
         #toast {
-            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.8); padding: 8px 16px; border-radius: 20px;
-            opacity: 0; transition: opacity 0.5s; font-size: 13px; pointer-events: none; border: 1px solid #333; z-index: 100; white-space: nowrap;
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 25px;
+            opacity: 0; transition: opacity 0.4s; font-size: 13px; pointer-events: none; z-index: 100;
         }
+        #mobile-menu-btn { display: none; width:44px; height:44px; border-radius:12px; font-size:18px; position: absolute; top: 20px; right: 20px; z-index: 101; }
 
-        /* 반응형: 모바일에서 패널 숨김/하단시트 처리 */
+        /* AR 버튼 숨김 기본값 */
+        #btn-ar { display: none; color: #FF2D55; border-color: #FF2D55; }
+
         @media (max-width: 768px) {
-            .panel { display: none; } /* 모바일은 복잡한 패널 일단 숨김 (필요시 메뉴로) */
-            #mobile-menu-btn { display: block; position: absolute; top: 20px; right: 20px; z-index: 100; }
-            #mobile-controls.active { display: flex; } /* Walk/Fly 모드일 때만 표시 */
+            .panel { display: none; }
+            #mobile-menu-btn { display: block; }
+            #mobile-dpad.active { display: grid; }
         }
-        #mobile-menu-btn { display: none; width:40px; height:40px; border-radius:50%; font-size:18px; }
     </style>
     <script type="importmap">
         {
             "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
             }
         }
     </script>
@@ -118,100 +139,105 @@
 
     <div id="landing-page">
         <div class="upload-box" onclick="document.getElementById('file-input').click()">
-            <h2 style="margin:0; font-weight:300;">ARCHI-VIEWER</h2>
-            <p style="font-size:12px; color:#888;">AR & Mobile UX Ready</p>
+            <h1 style="margin:0; font-size:24px; font-weight:800; color:#222; letter-spacing:-0.02em;">3D GLB Explorer</h1>
+            <p style="font-size:13px; color:#888; margin-top:8px;">클릭하여 GLB 모델을 선택하세요</p>
             <input type="file" id="file-input" accept=".glb,.gltf" style="display:none;">
         </div>
-        <div id="loader" style="display:none; margin-top:20px; color:#00d2ff;">Loading Model...</div>
+        <div id="loader" style="display:none; margin-top:24px; font-weight:600; color:var(--primary);"></div>
     </div>
 
     <div id="ui-layer" style="display:none;">
         <div id="crosshair"></div>
-        
         <button id="mobile-menu-btn" onclick="toggleMobileSettings()">⚙</button>
 
         <div id="top-bar">
             <button id="mode-render" class="active">RENDER</button>
             <button id="mode-white">WHITE</button>
-            <span style="width:1px; height:15px; background:#444; margin:0 5px;"></span>
+            <span style="width:1px; height:16px; background:#ddd; margin:auto 4px; flex-shrink:0;"></span>
             <button id="cam-fly" class="active">FLY</button>
             <button id="cam-walk">WALK</button>
             <button id="cam-iso">ISO</button>
-            <span style="width:1px; height:15px; background:#444; margin:0 5px;"></span>
-            <button id="btn-full">FULL</button>
-            <button id="btn-share">LINK</button>
+            <span style="width:1px; height:16px; background:#ddd; margin:auto 4px; flex-shrink:0;"></span>
+            <button id="btn-reset">RESET</button>
+            <button id="btn-ar">AR VIEW</button>
+            <button id="btn-help">GUIDE</button>
+            <button id="btn-capture" style="color:var(--primary)">CAPTURE</button>
+        </div>
+
+        <!-- 모바일 이동 패드 -->
+        <div id="mobile-dpad">
+            <div class="dbtn" style="grid-area: up;" id="d-up">↑</div>
+            <div class="dbtn" style="grid-area: left;" id="d-left">←</div>
+            <div class="dbtn" style="grid-area: right;" id="d-right">→</div>
+            <div class="dbtn" style="grid-area: down;" id="d-down">↓</div>
+        </div>
+
+        <div id="help-panel" class="panel">
+            <div class="panel-header">CONTROLS <button id="close-help" style="border:none;background:none;font-size:14px;padding:0">×</button></div>
+            <div class="panel-content">
+                <div class="help-grid">
+                    <span class="key">W A S D</span><span>이동</span>
+                    <span class="key">E / Q</span><span>상승 / 하강</span>
+                    <span class="key">SHIFT</span><span>가속</span>
+                    <span class="key">SPACE</span><span>Walk 점프</span>
+                    <span class="key">MOUSE</span><span>시점 회전</span>
+                    <span class="key">ESC</span><span>고정 해제</span>
+                </div>
+            </div>
         </div>
 
         <div id="env-panel" class="panel">
-            <div class="panel-header">
-                ENVIRONMENT
-                <button class="toggle-btn">－</button>
-            </div>
+            <div class="panel-header">LIGHTING & SKY <button class="toggle-btn" style="border:none;background:none;font-size:14px;padding:0">－</button></div>
             <div class="panel-content">
                 <div class="row">
-                    <span class="label">Background</span>
-                    <div style="display:flex; gap:5px; width:100%;">
-                        <button id="bg-hdri" class="active" style="flex:1;">SKY</button>
-                        <button id="bg-color" style="flex:1;">COLOR</button>
+                    <span class="label">Sky Type</span>
+                    <div style="display:flex; gap:4px; flex:1; margin-left:10px;">
+                        <button id="bg-hdri" class="active" style="flex:1;">REAL</button>
+                        <button id="bg-color" style="flex:1;">SOLID</button>
                     </div>
                 </div>
+                <div class="row" id="hdr-load-row">
+                    <span class="label">HDR Load</span>
+                    <button onclick="document.getElementById('hdr-input').click()" style="flex:1">IMPORT .HDR</button>
+                    <input type="file" id="hdr-input" accept=".hdr,.exr" style="display:none;">
+                </div>
                 <div class="row" id="bg-color-picker-row" style="display:none;">
-                    <span class="label">Sky Color</span>
-                    <input type="color" id="bg-color-val" value="#333333">
+                    <span class="label">Custom Color</span>
+                    <input type="color" id="bg-color-val" value="#ffffff" style="width:40px; height:24px; border:none; padding:0; background:none; cursor:pointer;">
                 </div>
                 <div class="row">
-                    <span class="label">Sun Light</span>
-                    <button id="shadow-toggle" class="active" style="width:40px;">ON</button>
+                    <span class="label">Light Intensity</span>
+                    <input type="range" id="sun-intensity" min="0" max="10" step="0.1" value="3.5">
                 </div>
                 <div class="row">
-                    <span class="label">Intensity</span>
-                    <input type="range" id="sun-intensity" min="0" max="5" step="0.1" value="2.0">
-                </div>
-                <div class="row">
-                    <span class="label">Angle</span>
-                    <input type="range" id="sun-angle" min="0" max="360" value="45">
-                </div>
-                <div class="row" style="border-top:1px solid #444; padding-top:10px;">
-                    <span class="label" style="color:#00d2ff;">AR Scale</span>
-                    <select id="ar-scale" style="background:#333; color:white; border:none; padding:3px;">
-                        <option value="1">1:1 (Real)</option>
-                        <option value="0.1">1:10 (Table)</option>
-                        <option value="0.01">1:100 (Model)</option>
-                    </select>
+                    <span class="label">Light Angle</span>
+                    <input type="range" id="sun-angle" min="0" max="360" value="145">
                 </div>
             </div>
         </div>
 
         <div id="cut-panel" class="panel">
-            <div class="panel-header">
-                SECTION CUT
-                <button class="toggle-btn">－</button>
-            </div>
+            <div class="panel-header">SECTION ANALYSIS <button class="toggle-btn" style="border:none;background:none;font-size:14px;padding:0">－</button></div>
             <div class="panel-content">
                 <div class="row">
                     <span class="label">Active</span>
-                    <button id="cut-toggle" class="active" style="width:50px;">ON</button>
+                    <button id="cut-toggle" class="active" style="width:60px;">ON</button>
                 </div>
-                <div class="row" style="justify-content: center; gap:5px;">
-                    <button id="axis-x" class="axis-btn">X</button>
-                    <button id="axis-y" class="axis-btn active">Y</button>
-                    <button id="axis-z" class="axis-btn">Z</button>
-                    <button id="axis-flip" style="color:#00d2ff;">FLIP</button>
+                <div class="row" style="gap:4px;">
+                    <button id="axis-x" class="axis-btn" style="flex:1">X</button>
+                    <button id="axis-y" class="axis-btn active" style="flex:1">Y</button>
+                    <button id="axis-z" class="axis-btn" style="flex:1">Z</button>
+                    <button id="axis-flip" style="color:var(--primary)">FLIP</button>
                 </div>
                 <div class="row">
-                    <span class="label">Level</span>
+                    <span class="label">Offset</span>
                     <input type="range" id="cut-slider" min="-100" max="100" value="100">
                 </div>
                 <div class="row">
-                    <span class="label">Color</span>
-                    <input type="color" id="cut-color" value="#ff0000"> 
+                    <span class="label">Cut Color</span>
+                    <input type="color" id="cut-color" value="#007AFF" style="width:40px; height:24px; border:none; padding:0; background:none; cursor:pointer;"> 
                 </div>
             </div>
-        </div>
-
-        <div id="mobile-controls">
-            <input type="range" id="move-slider" min="-1" max="1" step="0.01" value="0">
-            <div class="control-label">FWD / BWD</div>
         </div>
 
         <div id="toast">Message</div>
@@ -224,156 +250,142 @@
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-        import { ARButton } from 'three/addons/webxr/ARButton.js'; // AR 버튼 추가
+        import { ARButton } from 'three/addons/webxr/ARButton.js';
 
-        // --- 전역 변수 ---
-        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        
-        let scene, renderer;
-        let perspCamera, orthoCamera, activeCamera;
-        let pControls, oControls;
-        let model = null, modelGroup = new THREE.Group(); // AR 스케일링을 위해 그룹 사용
+        let scene, renderer, perspCamera, orthoCamera, activeCamera, pControls, oControls;
+        let model = null, modelGroup = new THREE.Group();
         let originalMaterials = new Map();
-        let envTexture, bgColor = new THREE.Color(0x333333);
-        let sunLight;
+        let envTexture, bgColor = new THREE.Color(0xffffff), skyColor = new THREE.Color(0x87CEEB);
+        let sunLight, hemiLight, ambientLight;
+        
+        // 카메라 초기 상태 저장용
+        let initialCamPos = new THREE.Vector3(20, 20, 20);
+        let initialCamRot = new THREE.Euler();
 
-        // 클리핑
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 100);
-        let clipAxis = 'y', clipNegate = true; 
-        let cutLineColor = new THREE.Color(0xff0000);
-
-        // 상태
+        let clipAxis = 'y', clipNegate = true, cutLineColor = new THREE.Color(0x007AFF);
         const state = { mode: 'render', cam: 'fly', bg: 'sky', cutEnabled: true };
 
-        // 물리 & 이동
-        const velocity = new THREE.Vector3();
-        const direction = new THREE.Vector3();
-        const move = { f:0, b:0, l:0, r:0, u:0, d:0 };
+        const velocity = new THREE.Vector3(), direction = new THREE.Vector3(), move = { f:0, b:0, l:0, r:0, u:0, d:0 };
         let speedMult = 1;
         const raycaster = new THREE.Raycaster();
-
-        // 모바일 터치 데이터
-        let mobileForwardSpeed = 0; // 슬라이더 값
-        let touchStartX = 0, touchStartY = 0;
 
         init();
         animate();
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x333333);
-            scene.add(modelGroup); // 모델을 그룹에 담아 스케일 조정
+            scene.background = skyColor; 
+            scene.add(modelGroup);
 
-            // Renderer (XR 지원 활성화)
-            renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+            renderer.setPixelRatio(window.devicePixelRatio);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.localClippingEnabled = true; 
-            renderer.xr.enabled = true; // XR 활성화
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            renderer.toneMappingExposure = 1.3;
+            renderer.xr.enabled = true; // AR 지원 활성화
             document.body.appendChild(renderer.domElement);
 
-            // AR Button 추가
-            const arBtn = ARButton.createButton(renderer, { 
-                optionalFeatures: ['dom-overlay'], 
-                domOverlay: { root: document.body } 
-            });
-            arBtn.style.bottom = "20px"; // 위치 조정
-            document.body.appendChild(arBtn);
-
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
-            envTexture = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+            const roomEnv = new RoomEnvironment();
+            envTexture = pmremGenerator.fromScene(roomEnv, 0.04).texture;
             scene.environment = envTexture;
-            scene.background = envTexture;
 
             const aspect = window.innerWidth / window.innerHeight;
-            perspCamera = new THREE.PerspectiveCamera(60, aspect, 0.1, 2000);
-            perspCamera.position.set(10, 10, 10);
+            perspCamera = new THREE.PerspectiveCamera(60, aspect, 0.1, 10000);
+            perspCamera.position.copy(initialCamPos);
 
-            const frustum = 50;
-            orthoCamera = new THREE.OrthographicCamera(-frustum*aspect, frustum*aspect, frustum, -frustum, 0.1, 2000);
+            const frustum = 30;
+            orthoCamera = new THREE.OrthographicCamera(-frustum*aspect, frustum*aspect, frustum, -frustum, 0.1, 10000);
             orthoCamera.position.set(50, 50, 50);
             orthoCamera.lookAt(0, 0, 0);
-
             activeCamera = perspCamera;
 
-            // 조명
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
             scene.add(ambientLight);
 
-            sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
-            sunLight.position.set(50, 80, 50);
+            hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 1.2);
+            scene.add(hemiLight);
+
+            sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
+            sunLight.position.set(30, 50, 30);
             sunLight.castShadow = true;
             sunLight.shadow.mapSize.set(2048, 2048);
             scene.add(sunLight);
 
-            // 컨트롤
             pControls = new PointerLockControls(perspCamera, document.body);
-            oControls = new OrbitControls(orthoCamera, renderer.domElement);
+            oControls = new OrbitControls(perspCamera, renderer.domElement);
             oControls.enableDamping = true;
-            oControls.enabled = false;
+            oControls.screenSpacePanning = true;
 
             setupEvents();
             setupUI();
-            makePanelsDraggable(); // 패널 드래그 기능
-
-            // 자동 로드
-            setTimeout(() => {
-                document.getElementById('loader').style.display = 'block';
-                loadGLB('./model.glb');
-            }, 500);
+            setupMobileDpad();
+            makePanelsDraggable();
+            
+            switchCam('fly');
         }
 
         function loadGLB(url) {
             new GLTFLoader().load(url, (gltf) => {
-                try {
-                    if(model) modelGroup.remove(model);
-                    model = gltf.scene;
+                if(model) modelGroup.remove(model);
+                model = gltf.scene;
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                model.position.sub(center); 
+                model.traverse(c => {
+                    if(c.isMesh) {
+                        c.castShadow = true; c.receiveShadow = true;
+                        originalMaterials.set(c.uuid, c.material);
+                        applyClipping(c.material);
+                        
+                        const edges = new THREE.EdgesGeometry(c.geometry, 25);
+                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ 
+                            color: 0x000000,
+                            polygonOffset: true,
+                            polygonOffsetFactor: -1,
+                            polygonOffsetUnits: -1
+                        }));
+                        line.material.clippingPlanes = [clipPlane];
+                        line.visible = false; line.userData.isEdge = true;
+                        c.add(line); 
+                    }
+                });
+                modelGroup.add(model);
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const slider = document.getElementById('cut-slider');
+                slider.min = -maxDim; slider.max = maxDim; slider.value = maxDim;
+                updateClipPlane(slider.value);
+                document.getElementById('landing-page').style.display = 'none';
+                document.getElementById('ui-layer').style.display = 'block';
+                
+                // 초기 상태 저장
+                oControls.target.set(0, 0, 0);
+                initialCamPos.copy(perspCamera.position);
+                initialCamRot.copy(perspCamera.rotation);
 
-                    // 센터링
-                    const box = new THREE.Box3().setFromObject(model);
-                    const center = box.getCenter(new THREE.Vector3());
-                    const size = box.getSize(new THREE.Vector3());
-                    model.position.sub(center); 
-                    
-                    model.traverse(c => {
-                        if(c.isMesh) {
-                            c.castShadow = true;
-                            c.receiveShadow = true;
-                            originalMaterials.set(c.uuid, c.material);
-                            applyClipping(c.material);
-
-                            const edges = new THREE.EdgesGeometry(c.geometry, 25);
-                            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: cutLineColor }));
-                            line.material.clippingPlanes = [clipPlane];
-                            line.visible = false; 
-                            line.userData.isEdge = true;
-                            c.add(line); 
-                        }
-                    });
-
-                    modelGroup.add(model); // Scene이 아닌 Group에 추가
-                    
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    const slider = document.getElementById('cut-slider');
-                    slider.min = -maxDim; slider.max = maxDim; slider.value = maxDim;
-                    updateClipPlane(slider.value);
-
-                    document.getElementById('landing-page').style.display = 'none';
-                    document.getElementById('ui-layer').style.display = 'block';
-                    
-                    showToast("Loaded! Drag panels to move.");
-                    switchCam('fly');
-
-                } catch (e) { console.error(e); }
-            }, undefined, (err) => {
-                console.warn("Manual load required");
-                document.getElementById('loader').style.display = 'none';
+                showToast("Model Loaded Successfully");
             });
         }
 
-        // --- 기능 함수 ---
+        function loadHDR(url) {
+            showToast("Loading Environment HDR...");
+            new RGBELoader().load(url, (texture) => {
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                envTexture = texture;
+                if (state.mode === 'render') {
+                    scene.environment = envTexture;
+                    if (state.bg === 'sky') scene.background = envTexture;
+                }
+                showToast("HDR Applied");
+            });
+        }
+
         function applyClipping(m) {
             if(Array.isArray(m)) m.forEach(x => x.clippingPlanes = [clipPlane]);
             else m.clippingPlanes = [clipPlane];
@@ -389,56 +401,214 @@
             if(clipAxis === 'z') clipPlane.normal.z = dir;
         }
 
+        const whiteMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide
+        });
+
         function toggleMode(mode) {
             state.mode = mode;
             const isRender = mode === 'render';
-            document.getElementById('mode-render').className = isRender ? 'active' : '';
-            document.getElementById('mode-white').className = !isRender ? 'active' : '';
-            updateBackground();
+            document.getElementById('mode-render').classList.toggle('active', isRender);
+            document.getElementById('mode-white').classList.toggle('active', !isRender);
+            
+            if (!isRender) {
+                scene.background = new THREE.Color(0xffffff);
+                scene.environment = null;
+                ambientLight.intensity = 1.8;
+                hemiLight.intensity = 2.0;
+                sunLight.intensity = 2.5;
+            } else {
+                scene.background = (state.bg === 'sky') ? (envTexture && envTexture.isTexture ? envTexture : skyColor) : bgColor;
+                scene.environment = envTexture;
+                ambientLight.intensity = 0.8;
+                hemiLight.intensity = 1.2;
+                sunLight.intensity = 3.5;
+            }
 
             if(!model) return;
             model.traverse(c => {
                 if(c.isMesh) {
                     if(isRender) {
                         c.material = originalMaterials.get(c.uuid);
-                        applyClipping(c.material);
                     } else {
-                        c.material = new THREE.MeshStandardMaterial({
-                            color: 0xffffff, roughness: 0.9, metalness: 0.1,
-                            clippingPlanes: [clipPlane], side: THREE.DoubleSide
-                        });
+                        c.material = whiteMaterial.clone();
                     }
+                    applyClipping(c.material);
                     c.children.forEach(ch => {
                         if(ch.userData.isEdge) {
                             ch.visible = !isRender;
-                            ch.material.color = isRender ? cutLineColor : new THREE.Color(0x000000);
+                            ch.material.color.set(0x000000);
                         }
                     });
                 }
             });
         }
 
-        function updateBackground() {
-            scene.background = (state.bg === 'sky') ? envTexture : bgColor;
+        function setupEvents() {
+            window.addEventListener('resize', () => {
+                const aspect = window.innerWidth/window.innerHeight;
+                perspCamera.aspect = aspect; perspCamera.updateProjectionMatrix();
+                orthoCamera.left = -30*aspect; orthoCamera.right = 30*aspect; orthoCamera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            document.addEventListener('keydown', e => {
+                switch(e.code) {
+                    case 'KeyW': move.f = 1; break; case 'KeyS': move.b = 1; break;
+                    case 'KeyA': move.l = 1; break; case 'KeyD': move.r = 1; break;
+                    case 'KeyE': move.u = 1; break; case 'KeyQ': move.d = 1; break;
+                    case 'ShiftLeft': speedMult = 2.5; break;
+                    case 'Space': if(state.cam === 'walk' && velocity.y <= 0) velocity.y += 10; break;
+                }
+            });
+            document.addEventListener('keyup', e => {
+                switch(e.code) {
+                    case 'KeyW': move.f = 0; break; case 'KeyS': move.b = 0; break;
+                    case 'KeyA': move.l = 0; break; case 'KeyD': move.r = 0; break;
+                    case 'KeyE': move.u = 0; break; case 'KeyQ': move.d = 0; break;
+                    case 'ShiftLeft': speedMult = 1; break;
+                }
+            });
+            
+            if(!isMobile) {
+                document.addEventListener('click', (e) => {
+                    if(e.target.closest('button') || e.target.closest('input') || e.target.closest('.panel')) return;
+                    if(state.cam !== 'iso' && !pControls.isLocked) {
+                        try { pControls.lock(); } catch (err) { }
+                    }
+                });
+            }
         }
 
-        // --- 드래거블 패널 로직 (PC UI 개선) ---
+        function setupMobileDpad() {
+            const bind = (id, key) => {
+                const el = document.getElementById(id);
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); move[key] = 1; });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); move[key] = 0; });
+            };
+            bind('d-up', 'f'); bind('d-down', 'b'); bind('d-left', 'l'); bind('d-right', 'r');
+        }
+
+        function switchCam(mode) {
+            state.cam = mode;
+            ['cam-fly','cam-walk','cam-iso'].forEach(id => document.getElementById(id).classList.toggle('active', id === `cam-${mode}`));
+            
+            const isIso = mode === 'iso';
+            const isWalk = mode === 'walk';
+            document.getElementById('crosshair').style.display = isIso ? 'none' : 'block';
+            
+            // 모바일 전용 D-pad 및 AR 버튼 가시성 제어
+            if(isMobile) {
+                document.getElementById('mobile-dpad').classList.toggle('active', !isIso);
+                document.getElementById('btn-ar').style.display = isWalk ? 'inline-block' : 'none';
+            }
+
+            if(isIso) {
+                activeCamera = orthoCamera;
+                oControls.object = orthoCamera;
+                oControls.enabled = true;
+                if(!isMobile && pControls.isLocked) pControls.unlock();
+            } else {
+                activeCamera = perspCamera;
+                oControls.object = perspCamera;
+                oControls.enabled = isMobile ? true : false;
+            }
+            showToast(`Mode: ${mode.toUpperCase()}`);
+        }
+
+        function setupUI() {
+            document.getElementById('file-input').onchange = (e) => loadGLB(URL.createObjectURL(e.target.files[0]));
+            document.getElementById('hdr-input').onchange = (e) => loadHDR(URL.createObjectURL(e.target.files[0]));
+            
+            document.getElementById('mode-render').onclick = () => toggleMode('render');
+            document.getElementById('mode-white').onclick = () => toggleMode('white');
+            document.getElementById('cam-fly').onclick = () => switchCam('fly');
+            document.getElementById('cam-walk').onclick = () => switchCam('walk');
+            document.getElementById('cam-iso').onclick = () => switchCam('iso');
+
+            // 카메라 리셋 버튼
+            document.getElementById('btn-reset').onclick = () => {
+                perspCamera.position.copy(initialCamPos);
+                perspCamera.rotation.copy(initialCamRot);
+                oControls.target.set(0, 0, 0);
+                velocity.set(0,0,0);
+                showToast("Camera Reset");
+            };
+
+            // AR 모드 버튼
+            document.getElementById('btn-ar').onclick = () => {
+                const sessionInit = { optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking', 'layers'] };
+                navigator.xr.requestSession('immersive-ar', sessionInit).then((session) => {
+                    renderer.xr.setSession(session);
+                }).catch(err => {
+                    showToast("AR Not Supported on this device");
+                });
+            };
+            
+            document.getElementById('btn-help').onclick = () => document.getElementById('help-panel').style.display = 'flex';
+            document.getElementById('close-help').onclick = () => document.getElementById('help-panel').style.display = 'none';
+
+            document.getElementById('btn-capture').onclick = () => {
+                renderer.render(scene, activeCamera);
+                const dataURL = renderer.domElement.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = 'Explorer_Screenshot.png'; link.href = dataURL; link.click();
+                showToast("Screenshot Saved!");
+            };
+
+            document.getElementById('bg-hdri').onclick = (e) => { 
+                state.bg='sky'; 
+                if (state.mode === 'render') scene.background = envTexture && envTexture.isTexture ? envTexture : skyColor;
+                e.target.classList.add('active'); document.getElementById('bg-color').classList.remove('active');
+                document.getElementById('bg-color-picker-row').style.display='none';
+                document.getElementById('hdr-load-row').style.display='flex';
+            };
+            document.getElementById('bg-color').onclick = (e) => { 
+                state.bg='color'; if (state.mode === 'render') scene.background = bgColor;
+                document.getElementById('bg-color-picker-row').style.display='flex';
+                document.getElementById('hdr-load-row').style.display='none';
+                e.target.classList.add('active'); document.getElementById('bg-hdri').classList.remove('active');
+            };
+            document.getElementById('bg-color-val').oninput = (e) => { 
+                bgColor.set(e.target.value); if (state.mode === 'render' && state.bg === 'color') scene.background = bgColor; 
+            };
+            
+            document.getElementById('sun-intensity').oninput = (e) => sunLight.intensity = parseFloat(e.target.value);
+            document.getElementById('sun-angle').oninput = (e) => {
+                const rad = e.target.value * (Math.PI/180);
+                sunLight.position.x = Math.sin(rad) * 40; sunLight.position.z = Math.cos(rad) * 40;
+            };
+
+            document.getElementById('cut-toggle').onclick = (e) => {
+                state.cutEnabled = !state.cutEnabled; renderer.localClippingEnabled = state.cutEnabled;
+                e.target.classList.toggle('active');
+            };
+
+            const setAxis = (ax) => {
+                clipAxis = ax;
+                ['axis-x', 'axis-y', 'axis-z'].forEach(id => document.getElementById(id).classList.toggle('active', id === `axis-${ax}`));
+                updateClipPlane(document.getElementById('cut-slider').value);
+            };
+            document.getElementById('axis-x').onclick = () => setAxis('x');
+            document.getElementById('axis-y').onclick = () => setAxis('y');
+            document.getElementById('axis-z').onclick = () => setAxis('z');
+            document.getElementById('axis-flip').onclick = () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); };
+            document.getElementById('cut-slider').oninput = (e) => updateClipPlane(e.target.value);
+        }
+
         function makePanelsDraggable() {
             document.querySelectorAll('.panel').forEach(panel => {
                 const header = panel.querySelector('.panel-header');
                 const toggle = panel.querySelector('.toggle-btn');
-                
-                // 최소화/확대
-                toggle.onclick = () => {
-                    panel.classList.toggle('minimized');
-                    toggle.innerText = panel.classList.contains('minimized') ? '＋' : '－';
-                };
-
-                // 드래그
+                if(toggle) {
+                    toggle.onclick = (e) => {
+                        e.stopPropagation(); panel.classList.toggle('minimized');
+                        toggle.innerText = panel.classList.contains('minimized') ? '＋' : '－';
+                    };
+                }
                 let isDragging = false, startX, startY, initLeft, initTop;
                 header.onmousedown = (e) => {
-                    isDragging = true;
-                    startX = e.clientX; startY = e.clientY;
+                    isDragging = true; startX = e.clientX; startY = e.clientY;
                     initLeft = panel.offsetLeft; initTop = panel.offsetTop;
                     document.onmousemove = (e) => {
                         if(!isDragging) return;
@@ -451,232 +621,63 @@
         }
 
         function animate() {
-            renderer.setAnimationLoop(() => { // XR 지원을 위해 requestAnimationFrame 대신 사용
+            renderer.setAnimationLoop(() => {
                 if(oControls.enabled) oControls.update();
 
-                // 이동 로직 (PC Key + Mobile Slider)
-                if((pControls.isLocked || isMobile) && (state.cam==='fly'||state.cam==='walk')) {
+                if(state.cam==='fly'||state.cam==='walk') {
                     const delta = 0.016;
-                    
                     velocity.x -= velocity.x * 10.0 * delta;
                     velocity.z -= velocity.z * 10.0 * delta;
-                    velocity.y -= velocity.y * 5.0 * delta;
+                    velocity.y -= velocity.y * 10.0 * delta;
 
-                    // 입력값: 키보드 + 모바일 슬라이더
-                    let inputZ = Number(move.f) - Number(move.b) + mobileForwardSpeed;
-                    let inputX = Number(move.r) - Number(move.l);
-                    
-                    direction.z = inputZ;
-                    direction.x = inputX;
+                    direction.z = Number(move.f) - Number(move.b);
+                    direction.x = Number(move.r) - Number(move.l);
                     direction.normalize();
 
                     const speed = (state.cam === 'walk' ? 40 : 60) * speedMult;
-                    if (inputZ || inputX) {
+                    
+                    if (move.f || move.b || move.l || move.r) {
                         velocity.z -= direction.z * speed * delta;
                         velocity.x -= direction.x * speed * delta;
                     }
 
-                    // PC PointerLock Move
-                    pControls.moveRight(-velocity.x * delta);
-                    pControls.moveForward(-velocity.z * delta);
+                    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(activeCamera.quaternion);
+                    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(activeCamera.quaternion);
                     
-                    // Mobile Move (Forward/Back only via slider)
-                    if(isMobile) {
-                        const v = new THREE.Vector3(); 
-                        activeCamera.getWorldDirection(v); 
-                        v.y = 0; v.normalize();
-                        
-                        // 슬라이더 값만큼 전진/후진
-                        if(Math.abs(mobileForwardSpeed) > 0.1) {
-                            activeCamera.position.add(v.multiplyScalar(mobileForwardSpeed * speed * delta));
-                        }
-                        
-                        // Fly 높이 (모바일에선 슬라이더 외엔 상하 이동 제한 - 복잡성 줄임)
-                        if(state.cam === 'fly' && Math.abs(mobileForwardSpeed) > 0.1) {
-                             const dir = new THREE.Vector3();
-                             activeCamera.getWorldDirection(dir);
-                             activeCamera.position.y += dir.y * mobileForwardSpeed * speed * delta;
-                        }
-                    } else {
-                         // PC Fly Height keys
-                         if(state.cam === 'fly') {
-                            if(move.u) velocity.y += speed * delta;
-                            if(move.d) velocity.y -= speed * delta;
-                            activeCamera.position.y += velocity.y * delta;
-                        }
-                    }
+                    if (state.cam === 'walk') { forward.y = 0; right.y = 0; forward.normalize(); right.normalize(); }
 
-                    // Walk Gravity
+                    activeCamera.position.addScaledVector(forward, -velocity.z * delta);
+                    activeCamera.position.addScaledVector(right, -velocity.x * delta);
+
+                    if(state.cam === 'fly') {
+                        if(move.u) velocity.y += speed * delta; 
+                        if(move.d) velocity.y -= speed * delta; 
+                        activeCamera.position.y += velocity.y * delta;
+                    }
+                    
                     if(state.cam === 'walk') {
-                        velocity.y -= 9.8 * 8.0 * delta;
+                        velocity.y -= 9.8 * 6.0 * delta;
                         raycaster.set(activeCamera.position, new THREE.Vector3(0, -1, 0));
-                        const intersects = raycaster.intersectObjects(scene.children, true);
+                        const intersects = raycaster.intersectObjects(modelGroup.children, true);
                         if (intersects.length > 0) {
                             const dist = intersects[0].distance;
-                            const h = 1.7;
-                            if (dist < h) {
-                                activeCamera.position.y = intersects[0].point.y + h;
-                                velocity.y = Math.max(0, velocity.y);
-                            } else if (dist < h + 0.5 && velocity.y < 0) {
-                                 activeCamera.position.y = intersects[0].point.y + h;
-                                 velocity.y = 0;
-                            }
+                            if (dist < 1.7) { activeCamera.position.y = intersects[0].point.y + 1.7; velocity.y = Math.max(0, velocity.y); }
                         }
                         activeCamera.position.y += velocity.y * delta;
-                        if(activeCamera.position.y < -50) { activeCamera.position.y = 50; velocity.y=0; }
+                    }
+
+                    if (isMobile) {
+                        const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(activeCamera.quaternion);
+                        oControls.target.copy(activeCamera.position).add(lookDir);
                     }
                 }
                 renderer.render(scene, activeCamera);
             });
         }
 
-        function setupEvents() {
-            // Mobile Touch Look (Drag to rotate)
-            let isTouchDown = false;
-            document.addEventListener('touchstart', (e) => {
-                if(e.target.closest('button') || e.target.closest('input') || e.target.closest('.panel')) return;
-                isTouchDown = true;
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-            });
-            document.addEventListener('touchmove', (e) => {
-                if(!isTouchDown || state.cam === 'iso') return; // ISO는 OrbitControls가 처리
-                const dx = e.touches[0].clientX - touchStartX;
-                const dy = e.touches[0].clientY - touchStartY;
-                
-                // 감도 조절
-                perspCamera.rotation.y -= dx * 0.005;
-                perspCamera.rotation.x -= dy * 0.005;
-                perspCamera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, perspCamera.rotation.x));
-                
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-            });
-            document.addEventListener('touchend', () => { isTouchDown = false; });
-
-            // Mobile Slider Logic
-            const slider = document.getElementById('move-slider');
-            slider.addEventListener('input', (e) => { mobileForwardSpeed = parseFloat(e.target.value); });
-            slider.addEventListener('touchend', () => { 
-                slider.value = 0; mobileForwardSpeed = 0; // 손 놓으면 정지
-            });
-            slider.addEventListener('mouseup', () => { 
-                slider.value = 0; mobileForwardSpeed = 0; 
-            });
-
-            // Keyboard
-            const onKey = (code, v) => {
-                switch(code) {
-                    case 'KeyW': move.f = v; break;
-                    case 'KeyS': move.b = v; break;
-                    case 'KeyA': move.l = v; break;
-                    case 'KeyD': move.r = v; break;
-                    case 'KeyE': move.u = v; break;
-                    case 'KeyQ': move.d = v; break;
-                    case 'ShiftLeft': speedMult = v ? 3 : 1; break;
-                    case 'Space': if(v && state.cam === 'walk') velocity.y += 15; break;
-                }
-            };
-            document.addEventListener('keydown', e => onKey(e.code, true));
-            document.addEventListener('keyup', e => onKey(e.code, false));
-            
-            window.addEventListener('resize', () => {
-                const aspect = window.innerWidth/window.innerHeight;
-                perspCamera.aspect = aspect; perspCamera.updateProjectionMatrix();
-                orthoCamera.left = -50*aspect; orthoCamera.right = 50*aspect;
-                orthoCamera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-            
-            if(!isMobile) {
-                document.addEventListener('click', (e) => {
-                    if(e.target.closest('button') || e.target.closest('input') || e.target.closest('.panel')) return;
-                    if(state.cam !== 'iso' && !pControls.isLocked) pControls.lock();
-                });
-            }
-        }
-
-        function switchCam(mode) {
-            state.cam = mode;
-            ['cam-fly','cam-walk','cam-iso'].forEach(id => {
-                document.getElementById(id).classList.toggle('active', id === `cam-${mode}`);
-            });
-            const isIso = mode === 'iso';
-            document.getElementById('crosshair').style.display = isIso ? 'none' : 'block';
-            
-            // 모바일 슬라이더 표시
-            const mobControls = document.getElementById('mobile-controls');
-            if(isMobile) mobControls.style.display = isIso ? 'none' : 'flex';
-
-            if(isIso) {
-                activeCamera = orthoCamera; oControls.enabled = true; 
-                if(!isMobile) pControls.unlock();
-                showToast("ISO View: Touch/Drag");
-            } else {
-                activeCamera = perspCamera; oControls.enabled = false;
-                showToast(mode.toUpperCase());
-            }
-        }
-
-        function setupUI() {
-            document.getElementById('file-input').onchange = (e) => loadGLB(URL.createObjectURL(e.target.files[0]));
-            
-            document.getElementById('mode-render').onclick = () => toggleMode('render');
-            document.getElementById('mode-white').onclick = () => toggleMode('white');
-            document.getElementById('cam-fly').onclick = () => switchCam('fly');
-            document.getElementById('cam-walk').onclick = () => switchCam('walk');
-            document.getElementById('cam-iso').onclick = () => switchCam('iso');
-            
-            document.getElementById('btn-full').onclick = () => {
-                if (!document.fullscreenElement) document.body.requestFullscreen();
-                else document.exitFullscreen();
-            };
-            document.getElementById('btn-share').onclick = () => {
-                navigator.clipboard.writeText(window.location.href);
-                showToast("Link Copied!");
-            };
-
-            document.getElementById('bg-hdri').onclick = () => { state.bg='sky'; updateBackground(); };
-            document.getElementById('bg-color').onclick = () => { state.bg='color'; updateBackground(); document.getElementById('bg-color-picker-row').style.display='flex'; };
-            document.getElementById('bg-color-val').oninput = (e) => { bgColor.set(e.target.value); updateBackground(); };
-            
-            document.getElementById('sun-intensity').oninput = (e) => sunLight.intensity = parseFloat(e.target.value);
-            document.getElementById('sun-angle').oninput = (e) => {
-                const rad = e.target.value * (Math.PI/180);
-                sunLight.position.x = Math.sin(rad) * 50; sunLight.position.z = Math.cos(rad) * 50;
-            };
-
-            document.getElementById('cut-toggle').onclick = (e) => {
-                state.cutEnabled = !state.cutEnabled;
-                renderer.localClippingEnabled = state.cutEnabled;
-                e.target.classList.toggle('active');
-            };
-            const setAxis = (ax) => {
-                clipAxis = ax;
-                ['axis-x','axis-y','axis-z'].forEach(id => document.getElementById(id).classList.toggle('active', id===`axis-${ax}`));
-                updateClipPlane(document.getElementById('cut-slider').value);
-            };
-            document.getElementById('axis-x').onclick = () => setAxis('x');
-            document.getElementById('axis-y').onclick = () => setAxis('y');
-            document.getElementById('axis-z').onclick = () => setAxis('z');
-            document.getElementById('axis-flip').onclick = () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); };
-            document.getElementById('cut-slider').oninput = (e) => updateClipPlane(e.target.value);
-            document.getElementById('cut-color').oninput = (e) => {
-                cutLineColor.set(e.target.value);
-                if(state.mode==='render'&&model) model.traverse(c=>{ c.children.forEach(ch=>{ if(ch.userData.isEdge) ch.material.color=cutLineColor; })});
-            };
-
-            // AR Scale UI
-            document.getElementById('ar-scale').onchange = (e) => {
-                const s = parseFloat(e.target.value);
-                modelGroup.scale.set(s,s,s);
-            };
-        }
-
-        // 모바일 설정 버튼 (토글) - HTML onclick 사용
         window.toggleMobileSettings = () => {
             const panels = document.querySelectorAll('.panel');
-            const isHidden = panels[0].style.display === 'none';
+            const isHidden = panels[0].style.display === 'none' || panels[0].style.display === '';
             panels.forEach(p => p.style.display = isHidden ? 'flex' : 'none');
         };
 
