@@ -8,7 +8,7 @@
         :root {
             --brand-color: #AF52DE;
             --bg-glass: rgba(255, 255, 255, 0.82);
-            --bg-glass-dark: rgba(255, 255, 255, 0.95);
+            --bg-glass-dark: rgba(0, 0, 0, 0.8);
             --border-light: rgba(0, 0, 0, 0.06);
             --shadow-premium: 0 8px 32px rgba(0, 0, 0, 0.12);
             --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
@@ -72,6 +72,33 @@
         button.active svg { filter: brightness(0) invert(1); opacity: 1; }
         .divider { width: 1px; height: 14px; background: rgba(0,0,0,0.1); margin: 0 4px; flex-shrink: 0; }
 
+        /* Mobile Controls */
+        #gyro-toggle-btn {
+            position: absolute; bottom: 30px; right: 30px;
+            width: 56px; height: 56px; border-radius: 28px;
+            background: var(--bg-glass-dark); color: white;
+            display: none; justify-content: center; align-items: center;
+            box-shadow: var(--shadow-premium); z-index: 1100;
+            border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #gyro-toggle-btn.active { background: var(--brand-color); transform: scale(1.1); }
+        #gyro-toggle-btn svg { width: 24px; height: 24px; }
+
+        #joystick-wrapper {
+            position: absolute; bottom: 40px; left: 40px;
+            width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 50%; border: 2px solid rgba(255,255,255,0.3);
+            display: none; justify-content: center; align-items: center;
+            z-index: 1100; touch-action: none;
+        }
+        #joystick-knob {
+            width: 50px; height: 50px; background: white;
+            border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+
         /* Side Panels */
         #sidebar-left {
             position: absolute; top: 90px; left: 20px;
@@ -97,26 +124,24 @@
 
         .row { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px; }
         .label { color: #86868b; font-size: 9px; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
-        
         .btn-group-full { display: flex; flex-direction: column; gap: 8px; width: 100%; }
         .row-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; width: 100%; }
-        .grid-btn { background: rgba(0,0,0,0.05); padding: 8px; font-size: 10px; border-radius: 8px; text-align: center; }
+        .grid-btn { background: rgba(0,0,0,0.05); padding: 8px; font-size: 10px; border-radius: 8px; text-align: center; border: none; cursor: pointer; }
         .grid-btn.active { background: var(--brand-color); color: #fff; }
-
         input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; background: rgba(0,0,0,0.08); border-radius: 2px; outline: none; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: white; border: 1.5px solid var(--brand-color); border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.15); cursor: pointer; }
 
-        /* AI & Toast */
         #ai-response { font-size: 11px; line-height: 1.5; color: #444; background: rgba(0,0,0,0.05); padding: 12px; border-radius: 12px; max-height: 140px; overflow-y: auto; white-space: pre-wrap; }
         #copyright { position: absolute; bottom: 10px; width: 100%; text-align: center; font-size: 8px; color: rgba(0,0,0,0.3); pointer-events: none; }
         #toast { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: white; padding: 10px 22px; border-radius: 18px; opacity: 0; transition: opacity 0.4s; font-size: 12px; z-index: 4000; pointer-events: none; backdrop-filter: blur(10px); }
         #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: var(--brand-color); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 1; }
-        
         #VRButton { display: none !important; }
 
         @media (max-width: 768px) {
             #sidebar-left { display: none; }
             .upload-card { width: 80vw; padding: 24px; }
+            #top-bar { top: 10px; }
+            #gyro-toggle-btn { display: flex; }
         }
     </style>
     <script type="importmap">
@@ -163,13 +188,21 @@
             <button id="cam-iso"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l10 5-10 5-10-5z"/><path d="M2 13l10 5 10-5"/><path d="M2 8l10 5 10-5"/></svg>ISO</button>
             <div class="divider"></div>
             <button id="btn-reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>RESET</button>
-            <!-- 자이로 및 VR 모드 버튼 검정색 테마 정렬 -->
-            <button id="cam-gyro" style="background:#1d1d1f; color:#fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>GYRO</button>
             <button id="btn-vr" style="background:#1d1d1f; color:#fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/></svg>VR MODE</button>
             <button id="btn-capture" style="color:var(--brand-color)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>CAPTURE</button>
         </div>
+
+        <!-- Mobile Specific Controls -->
+        <button id="gyro-toggle-btn" title="Gyro Toggle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </button>
+
+        <div id="joystick-wrapper">
+            <div id="joystick-knob"></div>
+        </div>
         
         <div id="sidebar-left">
+            <!-- Environment Panel -->
             <div id="env-panel" class="panel">
                 <div class="panel-header">Environment <button class="toggle-btn" onclick="this.closest('.panel').classList.toggle('minimized')">－</button></div>
                 <div class="panel-content">
@@ -259,13 +292,15 @@
         const cameraRig = new THREE.Group();
         const GITHUB_SAMPLE_URL = './model.glb';
 
-        // 자이로 변수 최적화
-        let isGyroEnabled = false;
+        // Gyro & Joystick
+        let isGyroActive = false;
         let deviceRotation = { alpha: 0, beta: 0, gamma: 0 };
         let screenOrientation = window.orientation || 0;
         const sensorQuaternion = new THREE.Quaternion();
         const constantRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-        const screenQuaternion = new THREE.Quaternion();
+
+        // Joystick Logic
+        const joystick = { active: false, start: { x: 0, y: 0 }, current: { x: 0, y: 0 }, vector: { x: 0, y: 0 } };
 
         init();
 
@@ -356,6 +391,7 @@
 
             setupEvents();
             setupUI();
+            setupJoystick();
             makePanelsDraggable();
             switchCam('fly');
             animate();
@@ -375,7 +411,7 @@
             }, (xhr) => {
                 if(loadingStatus) loadingStatus.innerText = `진행도: ${(xhr.loaded/xhr.total*100).toFixed(0)}%`;
             }, (err) => {
-                showToast("모델 로드 실패. 파일 경로를 확인하세요.");
+                showToast("모델 로드 실패.");
                 if(loadingStatus) loadingStatus.style.display = 'none';
             });
         }
@@ -416,13 +452,19 @@
 
         function switchCam(mode) {
             state.cam = mode;
-            isGyroEnabled = (mode === 'gyro');
-            
-            ['cam-fly','cam-walk','cam-iso','cam-gyro'].forEach(id => { 
+            ['cam-fly','cam-walk','cam-iso'].forEach(id => { 
                 const el = document.getElementById(id); 
                 if(el) el.classList.toggle('active', id === `cam-${mode}`); 
             });
-            
+
+            // Joystick display
+            const joystickUI = document.getElementById('joystick-wrapper');
+            if (isMobile && (mode === 'fly' || mode === 'walk')) {
+                joystickUI.style.display = 'flex';
+            } else {
+                joystickUI.style.display = 'none';
+            }
+
             if(mode === 'iso') { 
                 const frustumSize = modelMaxDim * 2;
                 const aspect = window.innerWidth / window.innerHeight;
@@ -432,53 +474,103 @@
                 orthoCamera.lookAt(0,0,0); orthoCamera.updateProjectionMatrix();
                 activeCamera = orthoCamera; oControls.object = orthoCamera; oControls.enabled = true; 
                 if(document.pointerLockElement) document.exitPointerLock();
-            } else if (mode === 'gyro') {
-                activeCamera = perspCamera; oControls.enabled = false;
-                requestGyroPermission();
             } else { 
                 activeCamera = perspCamera; oControls.object = perspCamera; oControls.enabled = isMobile;
             }
         }
 
-        async function requestGyroPermission() {
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission === 'granted') {
-                        window.addEventListener('deviceorientation', onDeviceOrientation, true);
-                    } else {
-                        showToast("자이로 권한이 거부되었습니다.");
-                        switchCam('fly');
-                    }
-                } catch (e) { showToast("자이로 권한 요청 중 오류 발생"); }
-            } else { 
-                window.addEventListener('deviceorientation', onDeviceOrientation, true);
+        // Gyro Toggle Logic
+        async function toggleGyro() {
+            const btn = document.getElementById('gyro-toggle-btn');
+            if (isGyroActive) {
+                isGyroActive = false;
+                btn.classList.remove('active');
+                if (isMobile) oControls.enabled = true;
+                window.removeEventListener('deviceorientation', onDeviceOrientation);
+                showToast("자이로 모드 종료");
+            } else {
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission === 'granted') {
+                            startGyro(btn);
+                        } else {
+                            showToast("권한이 거부되었습니다.");
+                        }
+                    } catch (e) { showToast("자이로 요청 오류"); }
+                } else {
+                    startGyro(btn);
+                }
             }
         }
 
-        function onDeviceOrientation(event) {
-            // 센서 원시 데이터 수신 및 라디안 변환
-            deviceRotation.alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0; // Z
-            deviceRotation.beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;   // X
-            deviceRotation.gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0; // Y
+        function startGyro(btn) {
+            isGyroActive = true;
+            btn.classList.add('active');
+            if (isMobile) oControls.enabled = false;
+            window.addEventListener('deviceorientation', onDeviceOrientation, true);
+            showToast("자이로 모드 시작");
         }
 
-        // 쿼터니언을 이용한 자이로 시선 동기화 핵심 로직
+        function onDeviceOrientation(event) {
+            deviceRotation.alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0;
+            deviceRotation.beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;
+            deviceRotation.gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0;
+        }
+
         function updateGyroRotation() {
             const alpha = deviceRotation.alpha;
             const beta = deviceRotation.beta;
             const gamma = deviceRotation.gamma;
             const orient = THREE.MathUtils.degToRad(screenOrientation);
-
             const zee = new THREE.Vector3(0, 0, 1);
             const euler = new THREE.Euler(beta, alpha, -gamma, 'YXZ');
             const q0 = new THREE.Quaternion().setFromAxisAngle(zee, -orient);
-
             sensorQuaternion.setFromEuler(euler);
             sensorQuaternion.multiply(constantRotation);
             sensorQuaternion.multiply(q0);
-
             perspCamera.quaternion.copy(sensorQuaternion);
+        }
+
+        // Joystick Logic
+        function setupJoystick() {
+            const wrapper = document.getElementById('joystick-wrapper');
+            const knob = document.getElementById('joystick-knob');
+            const maxRadius = 40;
+
+            const handleTouch = (e) => {
+                const touch = e.touches[0];
+                const rect = wrapper.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+                
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist > maxRadius) {
+                    dx = dx * (maxRadius / dist);
+                    dy = dy * (maxRadius / dist);
+                }
+                
+                knob.style.transform = `translate(${dx}px, ${dy}px)`;
+                joystick.vector.x = dx / maxRadius;
+                joystick.vector.y = dy / maxRadius;
+            };
+
+            wrapper.addEventListener('touchstart', (e) => {
+                joystick.active = true;
+                handleTouch(e);
+            });
+            wrapper.addEventListener('touchmove', (e) => {
+                if (joystick.active) handleTouch(e);
+            });
+            wrapper.addEventListener('touchend', () => {
+                joystick.active = false;
+                knob.style.transform = `translate(0px, 0px)`;
+                joystick.vector.x = 0;
+                joystick.vector.y = 0;
+            });
         }
 
         function setupUI() {
@@ -494,7 +586,9 @@
             document.getElementById('cam-fly').addEventListener('click', () => switchCam('fly'));
             document.getElementById('cam-walk').addEventListener('click', () => switchCam('walk'));
             document.getElementById('cam-iso').addEventListener('click', () => switchCam('iso'));
-            document.getElementById('cam-gyro').addEventListener('click', () => switchCam('gyro'));
+            
+            document.getElementById('gyro-toggle-btn').addEventListener('click', toggleGyro);
+
             document.getElementById('btn-reset').addEventListener('click', () => {
                 cameraRig.position.set(0, 0, 0); cameraRig.rotation.set(0,0,0);
                 perspCamera.position.set(modelMaxDim*1.5, modelMaxDim*1.5, modelMaxDim*1.5);
@@ -506,23 +600,10 @@
             });
             document.getElementById('btn-capture').addEventListener('click', () => {
                 renderer.render(scene, activeCamera);
-                const link = document.createElement('a'); 
-                link.download = 'kil_capture.png'; link.href = renderer.domElement.toDataURL('image/png'); 
-                link.click();
+                const link = document.createElement('a'); link.download = 'kil_capture.png'; link.href = renderer.domElement.toDataURL('image/png'); link.click();
             });
             const bindClick = (id, fn) => { const el = document.getElementById(id); if(el) el.addEventListener('click', fn); };
             bindClick('bg-sky', () => setBG('sky')); bindClick('bg-solid', () => setBG('solid')); bindClick('bg-hdr', () => setBG('hdr'));
-            const hdrInput = document.getElementById('hdr-input');
-            document.getElementById('btn-upload-hdr-manual').addEventListener('click', () => hdrInput.click());
-            hdrInput.addEventListener('change', (e) => {
-                if(e.target.files && e.target.files[0]) {
-                    const url = URL.createObjectURL(e.target.files[0]);
-                    new RGBELoader().load(url, (t) => {
-                        t.mapping = THREE.EquirectangularReflectionMapping;
-                        scene.background = t; scene.environment = t; showToast("HDR 적용됨");
-                    });
-                }
-            });
             document.getElementById('bg-color-val').addEventListener('input', (e) => {
                 bgColor.set(e.target.value); if(state.bg === 'solid') scene.background = bgColor;
             });
@@ -592,20 +673,32 @@
                 if (renderer.xr.isPresenting) {
                     handleVRController();
                 } else {
-                    if (isGyroEnabled && isMobile) {
+                    if (isGyroActive && isMobile) {
                         updateGyroRotation();
                     } else if (state.cam === 'iso' || isMobile || !document.pointerLockElement) {
                         oControls.update();
                     }
-                    if (document.pointerLockElement) {
-                        const delta = 0.016;
-                        const speed = (state.cam === 'walk' ? 12 : 20) * speedMult;
-                        const lookDir = new THREE.Vector3(); perspCamera.getWorldDirection(lookDir);
-                        const forward = lookDir.clone(); if(state.cam==='walk') forward.y=0; forward.normalize();
-                        const right = new THREE.Vector3().crossVectors(forward, perspCamera.up).normalize();
-                        const moveVec = new THREE.Vector3();
-                        if(move.f) moveVec.addScaledVector(forward, speed*delta); if(move.b) moveVec.addScaledVector(forward, -speed*delta);
-                        if(move.l) moveVec.addScaledVector(right, -speed*delta); if(move.r) moveVec.addScaledVector(right, speed*delta);
+
+                    const delta = 0.016;
+                    const speed = (state.cam === 'walk' ? 12 : 20) * speedMult;
+                    const lookDir = new THREE.Vector3(); perspCamera.getWorldDirection(lookDir);
+                    const forward = lookDir.clone(); if(state.cam==='walk') forward.y=0; forward.normalize();
+                    const right = new THREE.Vector3().crossVectors(forward, perspCamera.up).normalize();
+                    const moveVec = new THREE.Vector3();
+
+                    // Keyboard input
+                    if(move.f) moveVec.addScaledVector(forward, speed*delta); 
+                    if(move.b) moveVec.addScaledVector(forward, -speed*delta);
+                    if(move.l) moveVec.addScaledVector(right, -speed*delta); 
+                    if(move.r) moveVec.addScaledVector(right, speed*delta);
+                    
+                    // Joystick input integration
+                    if (isMobile && joystick.active) {
+                        moveVec.addScaledVector(forward, -joystick.vector.y * speed * delta);
+                        moveVec.addScaledVector(right, joystick.vector.x * speed * delta);
+                    }
+
+                    if (moveVec.length() > 0) {
                         if(state.cam === 'fly') {
                             if(move.u) moveVec.y += speed*delta; if(move.d) moveVec.y -= speed*delta;
                             perspCamera.position.add(moveVec);
@@ -664,9 +757,7 @@
                 perspCamera.aspect = window.innerWidth/window.innerHeight; perspCamera.updateProjectionMatrix(); 
                 screenOrientation = window.orientation || 0;
             });
-            window.addEventListener('orientationchange', () => {
-                screenOrientation = window.orientation || 0;
-            });
+            window.addEventListener('orientationchange', () => { screenOrientation = window.orientation || 0; });
             document.addEventListener('keydown', e => { 
                 switch(e.code) { 
                     case 'KeyW': move.f=1; break; case 'KeyS': move.b=1; break; case 'KeyA': move.l=1; break; case 'KeyD': move.r=1; break; 
@@ -680,7 +771,7 @@
                 } 
             });
             document.addEventListener('mousedown', (e) => { 
-                if(!isMobile && document.getElementById('landing-page').style.display === 'none' && !e.target.closest('button, .panel, input') && state.cam !== 'iso' && state.cam !== 'gyro') { 
+                if(!isMobile && document.getElementById('landing-page').style.display === 'none' && !e.target.closest('button, .panel, input') && state.cam !== 'iso' && !isGyroActive) { 
                     pControls.lock(); 
                 } 
             });
