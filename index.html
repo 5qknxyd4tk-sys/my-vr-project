@@ -28,13 +28,24 @@
         #landing-page {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: #fff; z-index: 200;
+            background: #fff; z-index: 200; gap: 30px;
         }
+        
+        .option-container {
+            display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+        }
+
         .upload-box {
-            border: 2px dashed #ddd; padding: 60px; border-radius: 24px; text-align: center;
+            border: 2px dashed #ddd; padding: 40px; border-radius: 24px; text-align: center;
             background: #fafafa; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 220px;
         }
-        .upload-box:hover { border-color: var(--primary); background: #f0f7ff; transform: translateY(-2px); }
+        .upload-box:hover { border-color: var(--primary); background: #f0f7ff; transform: translateY(-4px); }
+        .upload-box.project-btn { border-style: solid; background: #fff; box-shadow: var(--shadow); border-color: var(--border); }
+        .upload-box.project-btn:hover { border-color: var(--primary); }
+
+        .upload-box h2 { margin: 0; font-size: 16px; font-weight: 700; color: #222; }
+        .upload-box p { font-size: 12px; color: #888; margin-top: 8px; }
         
         /* UI 패널 */
         .panel {
@@ -117,10 +128,11 @@
             text-align: center;
         }
         
-        /* 옵션 버튼 위치 이동: 우측 하단 */
+        /* 옵션 버튼 위치: 우측 하단 고정 */
         #mobile-menu-btn { 
             display: none; width:44px; height:44px; border-radius:12px; font-size:18px; 
             position: absolute; bottom: 20px; right: 20px; z-index: 101; 
+            background: var(--bg-light); border: 1px solid var(--border); box-shadow: var(--shadow);
         }
 
         #btn-gyro.active { background: #5856D6; border-color: #5856D6; color: white; }
@@ -129,6 +141,8 @@
             .panel { display: none; }
             #mobile-menu-btn { display: block; }
             #mobile-dpad.active { display: grid; }
+            .option-container { flex-direction: column; }
+            .upload-box { width: 80vw; padding: 25px; }
         }
     </style>
     <script type="importmap">
@@ -143,10 +157,19 @@
 <body>
 
     <div id="landing-page">
-        <div class="upload-box" onclick="document.getElementById('file-input').click()">
-            <h1 style="margin:0; font-size:24px; font-weight:800; color:#222; letter-spacing:-0.02em;">3D GLB Explorer</h1>
-            <p style="font-size:13px; color:#888; margin-top:8px;">클릭하여 GLB 모델을 선택하세요</p>
-            <input type="file" id="file-input" accept=".glb,.gltf" style="display:none;">
+        <h1 style="margin:0; font-size:32px; font-weight:900; color:#222; letter-spacing:-0.03em;">3D GLB Explorer</h1>
+        <div class="option-container">
+            <!-- 프로젝트 모델 즉시 로드 -->
+            <div class="upload-box project-btn" id="btn-load-project">
+                <h2>PROJECT MODEL</h2>
+                <p>GitHub 저장소의 model.glb 로드</p>
+            </div>
+            <!-- 수동 파일 업로드 -->
+            <div class="upload-box" onclick="document.getElementById('file-input').click()">
+                <h2>BROWSE FILES</h2>
+                <p>기기에 있는 모델 선택</p>
+                <input type="file" id="file-input" accept=".glb,.gltf" style="display:none;">
+            </div>
         </div>
     </div>
 
@@ -179,9 +202,9 @@
             <div class="panel-header">CONTROLS <button id="close-help" style="border:none;background:none;font-size:14px;padding:0">×</button></div>
             <div class="panel-content">
                 <div class="help-grid">
-                    <span class="key">W A S D</span><span>이동</span>
-                    <span class="key">E / Q</span><span>상승 / 하강</span>
-                    <span class="key">SHIFT</span><span>가속</span>
+                    <span class="key">W A S D</span><span>이동 (앞뒤좌우)</span>
+                    <span class="key">E / Q</span><span>상승 / 하강 (Fly)</span>
+                    <span class="key">SHIFT</span><span>가속 이동</span>
                     <span class="key">SPACE</span><span>점프 (Walk)</span>
                     <span class="key">GYRO</span><span>기기 회전 시점 조작</span>
                 </div>
@@ -271,9 +294,7 @@
         let speedMult = 1;
         const raycaster = new THREE.Raycaster();
 
-        // 자이로 보정을 위한 시점 변수
-        let gyroYaw = 0;
-        let gyroPitch = 0;
+        // 자이로 보정을 위한 시선 변수
         let lastAlpha = null;
 
         init();
@@ -332,8 +353,20 @@
             switchCam('fly');
         }
 
+        // URL 파싱 오류 해결을 위한 개선된 모델 로드 함수
         function loadGLB(url) {
-            new GLTFLoader().load(url, (gltf) => {
+            // Blob URL이 아니면 절대 경로로 정규화 시도
+            let finalUrl = url;
+            if (!url.startsWith('blob:') && !url.startsWith('http')) {
+                try {
+                    finalUrl = new URL(url, window.location.href).href;
+                } catch (e) {
+                    console.warn("URL Normalization failed:", e);
+                }
+            }
+
+            showToast("모델을 가져오는 중...");
+            new GLTFLoader().load(finalUrl, (gltf) => {
                 if(model) modelGroup.remove(model);
                 model = gltf.scene;
                 const box = new THREE.Box3().setFromObject(model);
@@ -346,7 +379,12 @@
                         originalMaterials.set(c.uuid, c.material);
                         applyClipping(c.material);
                         const edges = new THREE.EdgesGeometry(c.geometry, 25);
-                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ 
+                            color: 0x000000, 
+                            polygonOffset: true, 
+                            polygonOffsetFactor: -1, 
+                            polygonOffsetUnits: -1 
+                        }));
                         line.material.clippingPlanes = [clipPlane];
                         line.visible = false; line.userData.isEdge = true;
                         c.add(line); 
@@ -357,12 +395,17 @@
                 const slider = document.getElementById('cut-slider');
                 slider.min = -maxDim; slider.max = maxDim; slider.value = maxDim;
                 updateClipPlane(slider.value);
+                
                 document.getElementById('landing-page').style.display = 'none';
                 document.getElementById('ui-layer').style.display = 'block';
+                
                 oControls.target.set(0, 0, 0);
                 initialCamPos.copy(perspCamera.position);
                 initialCamRot.copy(perspCamera.rotation);
-                showToast("모델이 로드되었습니다.");
+                showToast("모델 로드 완료");
+            }, undefined, (error) => {
+                console.error("GLTF Load Error:", error);
+                showToast("모델 로드 실패: 파일을 찾을 수 없거나 형식이 잘못되었습니다.");
             });
         }
 
@@ -375,7 +418,7 @@
                     scene.environment = envTexture;
                     if (state.bg === 'sky') scene.background = envTexture;
                 }
-                showToast("HDR이 적용되었습니다.");
+                showToast("HDR 적용 완료");
             });
         }
 
@@ -394,13 +437,16 @@
             if(clipAxis === 'z') clipPlane.normal.z = dir;
         }
 
-        const whiteMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide });
+        const whiteMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide 
+        });
 
         function toggleMode(mode) {
             state.mode = mode;
             const isRender = mode === 'render';
             document.getElementById('mode-render').classList.toggle('active', isRender);
             document.getElementById('mode-white').classList.toggle('active', !isRender);
+            
             if (!isRender) {
                 scene.background = new THREE.Color(0xffffff);
                 scene.environment = null;
@@ -410,6 +456,7 @@
                 scene.environment = envTexture;
                 ambientLight.intensity = 0.8; hemiLight.intensity = 1.2; sunLight.intensity = 3.5;
             }
+
             if(!model) return;
             model.traverse(c => {
                 if(c.isMesh) {
@@ -427,6 +474,7 @@
                 orthoCamera.left = -30*aspect; orthoCamera.right = 30*aspect; orthoCamera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
+            
             document.addEventListener('keydown', e => {
                 switch(e.code) {
                     case 'KeyW': move.f = 1; break; case 'KeyS': move.b = 1; break;
@@ -445,29 +493,17 @@
                 }
             });
             
-            // 매직 윈도우 스타일의 자이로 보정 로직 (뒤틀림 방지)
+            // 매직 윈도우 스타일 자이로 보정 (뒤틀림 방지)
             window.addEventListener('deviceorientation', (e) => {
                 if (!state.gyro) return;
-                
-                if (lastAlpha === null) {
-                    lastAlpha = e.alpha;
-                    return;
-                }
-
-                // 1. Yaw (좌우 회전 - alpha 기반)
-                // 단순히 alpha 값을 사용하면 초기 방향에 따라 비틀릴 수 있음
-                // 여기서는 기기의 기울기(beta, gamma)를 통해 시선 각도(Euler)를 재계산
-                
                 const alpha = e.alpha ? THREE.MathUtils.degToRad(e.alpha) : 0;
                 const beta = e.beta ? THREE.MathUtils.degToRad(e.beta) : 0;
-                const gamma = e.gamma ? THREE.MathUtils.degToRad(e.gamma) : 0;
-
-                // 시점 비틀림(Roll)을 제거하기 위해 수동으로 Euler 각도 적용
-                // YXZ 순서로 적용하되, Roll(Z축)은 0으로 고정하여 수평 유지
+                
                 perspCamera.rotation.order = 'YXZ';
-                perspCamera.rotation.x = beta - Math.PI / 2; // 상하
-                perspCamera.rotation.y = alpha;             // 좌우
-                perspCamera.rotation.z = 0;                 // 좌우 비틀림 제거
+                // Roll(Z)은 0으로 강제하여 수평을 유지하고 Pitch(X)와 Yaw(Y)만 제어
+                perspCamera.rotation.x = beta - Math.PI / 2;
+                perspCamera.rotation.y = alpha;
+                perspCamera.rotation.z = 0;
             });
 
             if(!isMobile) {
@@ -476,20 +512,9 @@
                     if(state.cam !== 'iso' && !pControls.isLocked && !state.gyro && !document.pointerLockElement) {
                         try {
                             const promise = pControls.lock();
-                            if (promise instanceof Promise) {
-                                promise.catch(err => {
-                                    if (err.name !== 'NotAllowedError' && err.name !== 'SecurityError') {
-                                        console.warn("PointerLock rejection:", err);
-                                    }
-                                });
-                            }
+                            if (promise instanceof Promise) promise.catch(() => {});
                         } catch (err) { }
                     }
-                });
-
-                document.addEventListener('pointerlockerror', () => {
-                    console.warn("Pointer Lock Error: 브라우저 환경에 의해 마우스 잠금이 제한되었습니다.");
-                    showToast("Camera lock restricted.");
                 });
             }
         }
@@ -497,6 +522,7 @@
         function setupMobileDpad() {
             const bind = (id, key) => {
                 const el = document.getElementById(id);
+                if (!el) return;
                 el.addEventListener('touchstart', (e) => { e.preventDefault(); move[key] = 1; });
                 el.addEventListener('touchend', (e) => { e.preventDefault(); move[key] = 0; });
             };
@@ -509,20 +535,18 @@
                 const btn = document.getElementById(id);
                 if (btn) btn.classList.toggle('active', id === `cam-${mode}`);
             });
-            
             const isIso = mode === 'iso';
             document.getElementById('crosshair').style.display = isIso ? 'none' : 'block';
-            
-            if(isMobile) {
-                document.getElementById('mobile-dpad').classList.toggle('active', !isIso);
-            }
+            if(isMobile) document.getElementById('mobile-dpad').classList.toggle('active', !isIso);
             
             if(isIso) {
                 activeCamera = orthoCamera; oControls.object = orthoCamera; oControls.enabled = true;
                 if(!isMobile && pControls.isLocked) pControls.unlock();
                 disableGyro();
             } else {
-                activeCamera = perspCamera; oControls.object = perspCamera; oControls.enabled = isMobile && !state.gyro ? true : false;
+                activeCamera = perspCamera; oControls.object = perspCamera; 
+                // 모바일에서는 수동 조작 시 OrbitControls 활용
+                oControls.enabled = isMobile && !state.gyro;
             }
             showToast(`모드: ${mode.toUpperCase()}`);
         }
@@ -542,13 +566,8 @@
         function applyGyroState() {
             state.gyro = !state.gyro;
             document.getElementById('btn-gyro').classList.toggle('active', state.gyro);
-            if (state.gyro) {
-                oControls.enabled = false;
-                lastAlpha = null;
-                showToast("자이로 뷰 활성화");
-            } else {
-                disableGyro();
-            }
+            if (state.gyro) { oControls.enabled = false; showToast("자이로 뷰 활성화"); }
+            else disableGyro();
         }
 
         function disableGyro() {
@@ -559,6 +578,8 @@
         }
 
         function setupUI() {
+            document.getElementById('btn-load-project').onclick = () => loadGLB('model.glb');
+
             document.getElementById('file-input').onchange = (e) => {
                 if (e.target.files[0]) loadGLB(URL.createObjectURL(e.target.files[0]));
             };
@@ -575,13 +596,10 @@
             document.getElementById('btn-reset').onclick = () => {
                 perspCamera.position.copy(initialCamPos); 
                 perspCamera.rotation.set(initialCamRot.x, initialCamRot.y, initialCamRot.z);
-                oControls.target.set(0, 0, 0); 
-                velocity.set(0,0,0); 
-                showToast("카메라 리셋");
+                oControls.target.set(0, 0, 0); velocity.set(0,0,0); showToast("카메라 리셋");
             };
             
             document.getElementById('btn-gyro').onclick = () => toggleGyro();
-            
             document.getElementById('btn-help').onclick = () => document.getElementById('help-panel').style.display = 'flex';
             document.getElementById('close-help').onclick = () => document.getElementById('help-panel').style.display = 'none';
             
@@ -622,6 +640,13 @@
             document.getElementById('axis-z').onclick = () => setAxis('z');
             document.getElementById('axis-flip').onclick = () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); };
             document.getElementById('cut-slider').oninput = (e) => updateClipPlane(e.target.value);
+            document.getElementById('cut-color').oninput = (e) => {
+                const newColorStr = e.target.value;
+                cutLineColor.set(newColorStr);
+                if(model && state.mode === 'render') {
+                    model.traverse(c => { c.children.forEach(ch => { if(ch.userData.isEdge) ch.material.color.copy(cutLineColor); }); });
+                }
+            };
         }
 
         function makePanelsDraggable() {
@@ -650,7 +675,6 @@
                     const speed = (state.cam === 'walk' ? 40 : 60) * speedMult;
                     if (move.f || move.b || move.l || move.r) { velocity.z -= direction.z * speed * delta; velocity.x -= direction.x * speed * delta; }
                     
-                    // 시점 기반 이동 (자이로 상태 고려)
                     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(activeCamera.quaternion);
                     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(activeCamera.quaternion);
                     if (state.cam === 'walk') { forward.y = 0; right.y = 0; forward.normalize(); right.normalize(); }
