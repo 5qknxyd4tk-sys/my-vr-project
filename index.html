@@ -10,7 +10,7 @@
             --bg-glass: rgba(255, 255, 255, 0.82);
             --bg-glass-dark: rgba(255, 255, 255, 0.95);
             --border-light: rgba(0, 0, 0, 0.06);
-            --shadow-premium: 0 8px 32px rgba(0, 0, 0, 0.1);
+            --shadow-premium: 0 8px 32px rgba(0, 0, 0, 0.12);
             --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
         }
         body {
@@ -62,7 +62,7 @@
         }
         button {
             display: inline-flex; align-items: center; gap: 6px;
-            background: transparent; border: none; color: #1d1d1f; padding: 8px 12px;
+            background: transparent; border: none; color: #1d1d1f; padding: 8px 14px;
             border-radius: 12px; cursor: pointer; font-size: 11px; font-weight: 700;
             transition: all 0.2s ease; white-space: nowrap;
         }
@@ -75,29 +75,41 @@
         /* Side Panels */
         #sidebar-left {
             position: absolute; top: 90px; left: 20px;
-            display: flex; flex-direction: column; gap: 12px;
+            display: flex; flex-direction: column; gap: 14px;
             z-index: 100; pointer-events: none;
         }
         .panel {
-            width: 210px; pointer-events: auto;
+            width: 230px; pointer-events: auto;
             background: var(--bg-glass); backdrop-filter: blur(30px) saturate(180%);
-            border-radius: 16px; box-shadow: var(--shadow-premium);
+            border-radius: 20px; box-shadow: var(--shadow-premium);
             border: 1px solid rgba(255,255,255,0.7);
             display: flex; flex-direction: column; overflow: hidden;
+            transition: transform 0.2s ease;
         }
         .panel-header {
-            padding: 10px 14px; cursor: move; display: flex; justify-content: space-between; align-items: center;
-            font-weight: 800; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7;
-            background: rgba(0,0,0,0.02);
+            padding: 12px 16px; cursor: move; display: flex; justify-content: space-between; align-items: center;
+            font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #86868b;
+            background: rgba(0,0,0,0.03); border-bottom: 1px solid var(--border-light);
         }
-        .panel-content { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+        .panel-content { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
         .panel.minimized .panel-content { display: none; }
-        .toggle-btn { padding: 0; border:none; background:none; cursor: pointer; font-size: 12px; opacity: 0.5; }
+        .toggle-btn { padding: 0; border:none; background:none; cursor: pointer; font-size: 14px; opacity: 0.5; color: #1d1d1f; }
+
+        .row { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px; }
+        .label { color: #86868b; font-size: 9px; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+        
+        .btn-group-full { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+        .row-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; width: 100%; }
+        .grid-btn { background: rgba(0,0,0,0.05); padding: 8px; font-size: 10px; border-radius: 8px; text-align: center; }
+        .grid-btn.active { background: var(--brand-color); color: #fff; }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; background: rgba(0,0,0,0.08); border-radius: 2px; outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: white; border: 1.5px solid var(--brand-color); border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.15); cursor: pointer; }
 
         /* AI & Toast */
-        #ai-response { font-size: 11px; line-height: 1.5; color: #444; background: rgba(0,0,0,0.04); padding: 10px; border-radius: 10px; max-height: 140px; overflow-y: auto; white-space: pre-wrap; }
-        #copyright { position: absolute; bottom: 10px; width: 100%; text-align: center; font-size: 8px; color: rgba(0,0,0,0.2); pointer-events: none; }
-        #toast { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 15px; opacity: 0; transition: opacity 0.4s; font-size: 12px; z-index: 4000; pointer-events: none; }
+        #ai-response { font-size: 11px; line-height: 1.5; color: #444; background: rgba(0,0,0,0.05); padding: 12px; border-radius: 12px; max-height: 140px; overflow-y: auto; white-space: pre-wrap; }
+        #copyright { position: absolute; bottom: 10px; width: 100%; text-align: center; font-size: 8px; color: rgba(0,0,0,0.3); pointer-events: none; }
+        #toast { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: white; padding: 10px 22px; border-radius: 18px; opacity: 0; transition: opacity 0.4s; font-size: 12px; z-index: 4000; pointer-events: none; backdrop-filter: blur(10px); }
         #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: var(--brand-color); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 1; }
         
         #VRButton { display: none !important; }
@@ -156,29 +168,61 @@
         </div>
         
         <div id="sidebar-left">
+            <!-- Environment Panel -->
             <div id="env-panel" class="panel">
                 <div class="panel-header">Environment <button class="toggle-btn" onclick="this.closest('.panel').classList.toggle('minimized')">－</button></div>
                 <div class="panel-content">
-                    <div class="btn-group-full"><div class="row-grid"><button id="bg-sky" class="active">SKY</button><button id="bg-solid">SOLID</button><button id="bg-hdr">HDR</button></div></div>
-                    <div id="solid-picker-row" style="display:none;" class="row"><span class="label">COLOR</span><input type="color" id="bg-color-val" value="#ffffff" style="border:none;background:none;width:24px;height:24px;cursor:pointer;"></div>
-                    <div id="hdr-upload-row" style="display:none;" class="row"><button id="btn-upload-hdr-manual" style="width:100%;background:rgba(0,0,0,0.05);padding:6px;font-size:10px;">UPLOAD HDR</button><input type="file" id="hdr-input" accept=".hdr,.exr" style="display:none;"></div>
+                    <div class="btn-group-full">
+                        <div class="row-grid">
+                            <button id="bg-sky" class="grid-btn active">SKY</button>
+                            <button id="bg-solid" class="grid-btn">SOLID</button>
+                            <button id="bg-hdr" class="grid-btn">HDR</button>
+                        </div>
+                    </div>
+                    <div id="solid-picker-row" style="display:none;" class="row">
+                        <span class="label">PICKER</span>
+                        <input type="color" id="bg-color-val" value="#ffffff" style="border:none; background:none; width:30px; height:30px; cursor:pointer;">
+                    </div>
+                    <div id="hdr-upload-row" style="display:none;" class="row">
+                        <button id="btn-upload-hdr-manual" style="width:100%; background:rgba(0,0,0,0.05); padding:8px; font-size:10px; border-radius:8px;">UPLOAD HDR</button>
+                        <input type="file" id="hdr-input" accept=".hdr,.exr" style="display:none;">
+                    </div>
+                    <div class="row">
+                        <span class="label">OUTLINE</span>
+                        <input type="range" id="toon-weight" min="0" max="5" step="0.1" value="1.5">
+                    </div>
                 </div>
             </div>
             
+            <!-- Section Analysis Panel -->
             <div id="cut-panel" class="panel">
                 <div class="panel-header">Section Analysis <button class="toggle-btn" onclick="this.closest('.panel').classList.toggle('minimized')">－</button></div>
                 <div class="panel-content">
-                    <div class="row" style="background:rgba(0,0,0,0.03); padding:6px; border-radius:10px;"><span class="label">SECTION</span><button id="cut-toggle" class="active" style="padding:4px 8px; min-width:60px; font-size:10px;">ON</button></div>
-                    <div class="btn-group-full"><div class="row-grid"><button id="axis-x" class="axis-btn">X</button><button id="axis-y" class="axis-btn active">Y</button><button id="axis-z" class="axis-btn">Z</button></div></div>
-                    <div class="row"><span class="label">OFFSET</span><input type="range" id="cut-slider" min="-100" max="100" value="100"></div>
+                    <div class="row">
+                        <span class="label">STATUS</span>
+                        <button id="cut-toggle" class="active" style="background: var(--brand-color); color:#fff; padding:6px 12px; border-radius:10px; font-size:10px; min-width:60px;">ON</button>
+                    </div>
+                    <div class="btn-group-full">
+                        <div class="row-grid">
+                            <button id="axis-x" class="grid-btn axis-btn">X</button>
+                            <button id="axis-y" class="grid-btn axis-btn active">Y</button>
+                            <button id="axis-z" class="grid-btn axis-btn">Z</button>
+                        </div>
+                        <button id="axis-flip" style="width:100%; background:rgba(175,82,222,0.1); color:var(--brand-color); padding:10px; border-radius:12px; font-size:10px; font-weight:800;">REVERSE AXIS</button>
+                    </div>
+                    <div class="row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                        <span class="label">OFFSET POSITION</span>
+                        <input type="range" id="cut-slider" min="-100" max="100" value="100">
+                    </div>
                 </div>
             </div>
 
+            <!-- AI Panel -->
             <div id="ai-panel" class="panel">
                 <div class="panel-header">✨ AI Insights <button class="toggle-btn" onclick="this.closest('.panel').classList.toggle('minimized')">－</button></div>
                 <div class="panel-content">
                     <div id="ai-response">공간 분석을 시작하려면 아래 버튼을 누르세요.</div>
-                    <button id="btn-ai-analyze" style="background: var(--brand-color); color: white; padding: 10px; border-radius: 10px; font-size:10px; cursor:pointer;">
+                    <button id="btn-ai-analyze" style="background: var(--brand-color); color: white; padding: 12px; border-radius: 12px; font-size:11px; font-weight:800; cursor:pointer; box-shadow: 0 4px 12px rgba(175, 82, 222, 0.3);">
                         ✨ ANALYZE VIEW
                     </button>
                 </div>
@@ -212,11 +256,8 @@
         let modelMaxDim = 50;
         const apiKey = "";
         
-        // VR 용 변수
         let controllerR, vrRay, teleportTarget;
         const cameraRig = new THREE.Group();
-
-        // GITHUB 샘플 모델 경로
         const GITHUB_SAMPLE_URL = './model.glb';
 
         init();
@@ -239,7 +280,6 @@
             perspCamera = new THREE.PerspectiveCamera(60, aspect, 0.1, 20000);
             perspCamera.position.set(50, 50, 50);
 
-            // VR 을 위한 리그 설정
             scene.add(cameraRig);
             cameraRig.add(perspCamera);
 
@@ -286,16 +326,13 @@
                 }
             });
 
-            // VR 버튼 및 컨트롤러 설정
             const vrBtnEl = VRButton.createButton(renderer);
             vrBtnEl.id = "VRButton";
             document.body.appendChild(vrBtnEl);
 
-            // 오른쪽 컨트롤러만 설정
-            controllerR = renderer.xr.getController(0); // 첫 번째 컨트롤러
+            controllerR = renderer.xr.getController(0);
             cameraRig.add(controllerR);
 
-            // 순간이동 가이드 레이저
             const geometry = new THREE.BufferGeometry().setFromPoints([ new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1) ]);
             const material = new THREE.LineBasicMaterial({ color: 0xAF52DE, transparent: true, opacity: 0.5 });
             vrRay = new THREE.Line(geometry, material);
@@ -303,7 +340,6 @@
             vrRay.visible = false;
             controllerR.add(vrRay);
 
-            // 순간이동 타겟 마커
             teleportTarget = new THREE.Mesh(
                 new THREE.RingGeometry(0.2, 0.25, 32).rotateX(-Math.PI / 2),
                 new THREE.MeshBasicMaterial({ color: 0xAF52DE, transparent: true, opacity: 0.8 })
@@ -334,7 +370,6 @@
                 if(loadingStatus) loadingStatus.innerText = `진행도: ${(xhr.loaded/xhr.total*100).toFixed(0)}%`;
             }, (err) => {
                 showToast("모델 로드 실패. 파일 경로를 확인하세요.");
-                console.error(err);
                 if(loadingStatus) loadingStatus.style.display = 'none';
             });
         }
@@ -354,6 +389,14 @@
                     c.castShadow = true; c.receiveShadow = true;
                     originalMaterials.set(c.uuid, c.material);
                     applyClipping(c.material);
+                    
+                    // 외곽선 생성
+                    const edges = new THREE.EdgesGeometry(c.geometry, 35);
+                    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 }));
+                    line.material.clippingPlanes = [clipPlane];
+                    line.userData.isEdge = true;
+                    line.visible = true;
+                    c.add(line);
                 }
             });
             modelGroup.add(model);
@@ -371,7 +414,7 @@
             oControls.target.set(0,0,0);
             oControls.update();
             
-            showToast("프로젝트 로드 완료");
+            showToast("Project Loaded Successfully");
         }
 
         function switchCam(mode) {
@@ -420,7 +463,7 @@
             document.getElementById('cam-iso').addEventListener('click', () => switchCam('iso'));
             
             document.getElementById('btn-reset').addEventListener('click', () => {
-                cameraRig.position.set(0, 0, 0); // VR 리그 초기화
+                cameraRig.position.set(0, 0, 0);
                 perspCamera.position.set(modelMaxDim*1.5, modelMaxDim*1.5, modelMaxDim*1.5);
                 oControls.target.set(0,0,0);
                 oControls.update();
@@ -429,7 +472,6 @@
             document.getElementById('btn-vr').addEventListener('click', () => {
                 const hiddenBtn = document.getElementById('VRButton');
                 if(hiddenBtn) hiddenBtn.click();
-                else showToast("VR을 지원하지 않는 환경입니다.");
             });
 
             document.getElementById('btn-capture').addEventListener('click', () => {
@@ -458,66 +500,72 @@
                 }
             });
 
+            // 배경색 피커 이벤트
+            document.getElementById('bg-color-val').addEventListener('input', (e) => {
+                bgColor.set(e.target.value);
+                if(state.bg === 'solid') {
+                    scene.background = bgColor;
+                }
+            });
+
+            // 외곽선 두께 스크롤러 복구
+            document.getElementById('toon-weight').addEventListener('input', (e) => {
+                const weight = parseFloat(e.target.value);
+                if(model) {
+                    model.traverse(c => {
+                        if(c.userData.isEdge) {
+                            c.visible = weight > 0;
+                            c.material.opacity = Math.min(weight / 2, 1);
+                            c.material.linewidth = weight; // 일부 브라우저 지원
+                        }
+                    });
+                }
+            });
+
             document.getElementById('cut-toggle').addEventListener('click', (e) => { 
                 state.cutEnabled = !state.cutEnabled; renderer.localClippingEnabled = state.cutEnabled; 
                 e.target.classList.toggle('active'); e.target.innerText = state.cutEnabled ? 'ON' : 'OFF'; 
+                e.target.style.background = state.cutEnabled ? 'var(--brand-color)' : '#86868b';
             });
             
-            const setAxis = (ax) => { clipAxis = ax; updateClipPlane(document.getElementById('cut-slider').value); };
+            const setAxis = (ax) => { 
+                clipAxis = ax; 
+                ['axis-x', 'axis-y', 'axis-z'].forEach(id => {
+                    document.getElementById(id).classList.toggle('active', id === `axis-${ax}`);
+                });
+                updateClipPlane(document.getElementById('cut-slider').value); 
+            };
             bindClick('axis-x', ()=>setAxis('x')); bindClick('axis-y', ()=>setAxis('y')); bindClick('axis-z', ()=>setAxis('z'));
+            bindClick('axis-flip', () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); });
             document.getElementById('cut-slider').addEventListener('input', (e)=>updateClipPlane(e.target.value));
 
             document.getElementById('btn-ai-analyze').addEventListener('click', getAIAnalysis);
         }
 
-        // VR 조작 핸들러
         function handleVRController() {
             const session = renderer.xr.getSession();
             if (!session) return;
-
             for (const source of session.inputSources) {
-                // 왼쪽 컨트롤러 무시 (Quest 2 에서 handedness 가 'left')
                 if (source.handedness === 'left') continue;
-
                 if (source.handedness === 'right' && source.gamepad) {
                     const gamepad = source.gamepad;
-                    const axes = gamepad.axes; // 2, 3 이 조이스틱
-                    const buttons = gamepad.buttons; // 0: Trigger, 4: A, 5: B
-
-                    // 1. 조이스틱 이동 (앞/뒤/좌/우)
+                    const axes = gamepad.axes; 
+                    const buttons = gamepad.buttons; 
                     const speed = 0.05;
                     const lookDir = new THREE.Vector3();
                     perspCamera.getWorldDirection(lookDir);
-                    lookDir.y = 0; // 바닥 평면 이동을 위해 Y축 고정
-                    lookDir.normalize();
-
+                    lookDir.y = 0; lookDir.normalize();
                     const sideDir = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), lookDir).normalize();
-
-                    // 조이스틱 입력 (axes[3]은 상하, axes[2]는 좌우)
-                    if (Math.abs(axes[3]) > 0.1) {
-                        cameraRig.position.addScaledVector(lookDir, -axes[3] * speed);
-                    }
-                    if (Math.abs(axes[2]) > 0.1) {
-                        cameraRig.position.addScaledVector(sideDir, axes[2] * speed);
-                    }
-
-                    // 2. B 버튼 (카메라 리셋) - buttons[5]
-                    if (buttons[5].pressed) {
-                        cameraRig.position.set(0, 0, 0);
-                        perspCamera.position.set(modelMaxDim*1.5, modelMaxDim*1.5, modelMaxDim*1.5);
-                    }
-
-                    // 3. 트리거 순간이동 (레이캐스팅) - buttons[0]
+                    if (Math.abs(axes[3]) > 0.1) cameraRig.position.addScaledVector(lookDir, -axes[3] * speed);
+                    if (Math.abs(axes[2]) > 0.1) cameraRig.position.addScaledVector(sideDir, axes[2] * speed);
+                    if (buttons[5].pressed) cameraRig.position.set(0, 0, 0);
                     const triggerPressed = buttons[0].pressed;
                     if (triggerPressed) {
                         vrRay.visible = true;
-                        
                         const tempMatrix = new THREE.Matrix4();
                         tempMatrix.identity().extractRotation(controllerR.matrixWorld);
-                        
                         raycaster.ray.origin.setFromMatrixPosition(controllerR.matrixWorld);
                         raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-
                         const intersects = raycaster.intersectObjects(modelGroup.children, true);
                         if (intersects.length > 0) {
                             teleportTarget.position.copy(intersects[0].point);
@@ -528,13 +576,8 @@
                             vrRay.scale.z = 10;
                         }
                     } else {
-                        // 트리거를 떼는 순간 순간이동 실행
-                        if (vrRay.visible && teleportTarget.visible) {
-                            cameraRig.position.copy(teleportTarget.position);
-                            showToast("순간이동 완료");
-                        }
-                        vrRay.visible = false;
-                        teleportTarget.visible = false;
+                        if (vrRay.visible && teleportTarget.visible) cameraRig.position.copy(teleportTarget.position);
+                        vrRay.visible = false; teleportTarget.visible = false;
                     }
                 }
             }
@@ -581,8 +624,25 @@
         }
 
         function applyClipping(m) { if(Array.isArray(m)) m.forEach(x => x.clippingPlanes = [clipPlane]); else m.clippingPlanes = [clipPlane]; }
-        function updateClipPlane(val) { const v = parseFloat(val); clipPlane.constant = clipNegate ? v : -v; clipPlane.normal.set(0,0,0); if(clipAxis==='x') clipPlane.normal.x=-1; if(clipAxis==='y') clipPlane.normal.y=-1; if(clipAxis==='z') clipPlane.normal.z=-1; }
-        function setBG(type) { state.bg = type; document.getElementById('solid-picker-row').style.display = type==='solid'?'flex':'none'; document.getElementById('hdr-upload-row').style.display = type==='hdr'?'flex':'none'; if(type==='sky'){scene.background=skyColor; scene.environment=envTexture;} else if(type==='solid'){scene.background=bgColor; scene.environment=null;} else {scene.background=envTexture; scene.environment=envTexture;} }
+        function updateClipPlane(val) { 
+            const v = parseFloat(val); 
+            clipPlane.constant = clipNegate ? v : -v; 
+            clipPlane.normal.set(0,0,0); 
+            if(clipAxis==='x') clipPlane.normal.x = clipNegate ? -1 : 1; 
+            if(clipAxis==='y') clipPlane.normal.y = clipNegate ? -1 : 1; 
+            if(clipAxis==='z') clipPlane.normal.z = clipNegate ? -1 : 1; 
+        }
+        function setBG(type) { 
+            state.bg = type; 
+            document.getElementById('bg-sky').classList.toggle('active', type==='sky');
+            document.getElementById('bg-solid').classList.toggle('active', type==='solid');
+            document.getElementById('bg-hdr').classList.toggle('active', type==='hdr');
+            document.getElementById('solid-picker-row').style.display = type==='solid'?'flex':'none'; 
+            document.getElementById('hdr-upload-row').style.display = type==='hdr'?'flex':'none'; 
+            if(type==='sky'){scene.background=skyColor; scene.environment=envTexture;} 
+            else if(type==='solid'){scene.background=bgColor; scene.environment=null;} 
+            else {scene.background=envTexture; scene.environment=envTexture;} 
+        }
         function toggleMode(mode) { state.mode = mode; if(model) model.traverse(c=>{ if(c.isMesh) { c.material = mode==='render' ? originalMaterials.get(c.uuid) : new THREE.MeshBasicMaterial({color:0xffffff, side:2}); applyClipping(c.material); } }); }
         
         function setupEvents() {
