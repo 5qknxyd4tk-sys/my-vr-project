@@ -163,7 +163,7 @@
             <button id="cam-iso"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l10 5-10 5-10-5z"/><path d="M2 13l10 5 10-5"/><path d="M2 8l10 5 10-5"/></svg>ISO</button>
             <div class="divider"></div>
             <button id="btn-reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>RESET</button>
-            <!-- 자이로 및 VR 모드 버튼이 이쪽으로 정렬됨 -->
+            <!-- 자이로 및 VR 모드 버튼 검정색 테마 정렬 -->
             <button id="cam-gyro" style="background:#1d1d1f; color:#fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>GYRO</button>
             <button id="btn-vr" style="background:#1d1d1f; color:#fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/></svg>VR MODE</button>
             <button id="btn-capture" style="color:var(--brand-color)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>CAPTURE</button>
@@ -259,8 +259,13 @@
         const cameraRig = new THREE.Group();
         const GITHUB_SAMPLE_URL = './model.glb';
 
+        // 자이로 변수 최적화
         let isGyroEnabled = false;
         let deviceRotation = { alpha: 0, beta: 0, gamma: 0 };
+        let screenOrientation = window.orientation || 0;
+        const sensorQuaternion = new THREE.Quaternion();
+        const constantRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+        const screenQuaternion = new THREE.Quaternion();
 
         init();
 
@@ -412,10 +417,12 @@
         function switchCam(mode) {
             state.cam = mode;
             isGyroEnabled = (mode === 'gyro');
+            
             ['cam-fly','cam-walk','cam-iso','cam-gyro'].forEach(id => { 
                 const el = document.getElementById(id); 
                 if(el) el.classList.toggle('active', id === `cam-${mode}`); 
             });
+            
             if(mode === 'iso') { 
                 const frustumSize = modelMaxDim * 2;
                 const aspect = window.innerWidth / window.innerHeight;
@@ -438,19 +445,40 @@
                 try {
                     const permission = await DeviceOrientationEvent.requestPermission();
                     if (permission === 'granted') {
-                        window.addEventListener('deviceorientation', onDeviceOrientation);
+                        window.addEventListener('deviceorientation', onDeviceOrientation, true);
                     } else {
                         showToast("자이로 권한이 거부되었습니다.");
                         switchCam('fly');
                     }
                 } catch (e) { showToast("자이로 권한 요청 중 오류 발생"); }
-            } else { window.addEventListener('deviceorientation', onDeviceOrientation); }
+            } else { 
+                window.addEventListener('deviceorientation', onDeviceOrientation, true);
+            }
         }
 
         function onDeviceOrientation(event) {
-            deviceRotation.alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0;
-            deviceRotation.beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;
-            deviceRotation.gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0;
+            // 센서 원시 데이터 수신 및 라디안 변환
+            deviceRotation.alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0; // Z
+            deviceRotation.beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;   // X
+            deviceRotation.gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0; // Y
+        }
+
+        // 쿼터니언을 이용한 자이로 시선 동기화 핵심 로직
+        function updateGyroRotation() {
+            const alpha = deviceRotation.alpha;
+            const beta = deviceRotation.beta;
+            const gamma = deviceRotation.gamma;
+            const orient = THREE.MathUtils.degToRad(screenOrientation);
+
+            const zee = new THREE.Vector3(0, 0, 1);
+            const euler = new THREE.Euler(beta, alpha, -gamma, 'YXZ');
+            const q0 = new THREE.Quaternion().setFromAxisAngle(zee, -orient);
+
+            sensorQuaternion.setFromEuler(euler);
+            sensorQuaternion.multiply(constantRotation);
+            sensorQuaternion.multiply(q0);
+
+            perspCamera.quaternion.copy(sensorQuaternion);
         }
 
         function setupUI() {
@@ -470,7 +498,7 @@
             document.getElementById('btn-reset').addEventListener('click', () => {
                 cameraRig.position.set(0, 0, 0); cameraRig.rotation.set(0,0,0);
                 perspCamera.position.set(modelMaxDim*1.5, modelMaxDim*1.5, modelMaxDim*1.5);
-                perspCamera.rotation.set(0, 0, 0); oControls.target.set(0,0,0); oControls.update();
+                perspCamera.quaternion.set(0,0,0,1); oControls.target.set(0,0,0); oControls.update();
             });
             document.getElementById('btn-vr').addEventListener('click', () => {
                 const hiddenBtn = document.getElementById('VRButton');
@@ -518,42 +546,23 @@
             document.getElementById('btn-ai-analyze').addEventListener('click', getAIAnalysis);
         }
 
-        // VR 조작 핸들러 개선
         function handleVRController() {
             const session = renderer.xr.getSession();
             if (!session) return;
             for (const source of session.inputSources) {
-                if (source.handedness === 'left') continue; // 왼쪽 무시
+                if (source.handedness === 'left') continue;
                 if (source.handedness === 'right' && source.gamepad) {
                     const gamepad = source.gamepad;
                     const axes = gamepad.axes; 
                     const buttons = gamepad.buttons; 
-
-                    // 1. 조이스틱 조작
                     const moveSpeed = 0.05;
                     const rotateSpeed = 0.03;
-                    
                     const lookDir = new THREE.Vector3();
                     perspCamera.getWorldDirection(lookDir);
                     lookDir.y = 0; lookDir.normalize();
-
-                    // 조이스틱 상/하 (axes[3]): 앞뒤 이동
-                    if (Math.abs(axes[3]) > 0.1) {
-                        cameraRig.position.addScaledVector(lookDir, -axes[3] * moveSpeed);
-                    }
-                    
-                    // [수정] 조이스틱 좌/우 (axes[2]): 시선 회전 (Snap/Smooth Rotation)
-                    if (Math.abs(axes[2]) > 0.1) {
-                        cameraRig.rotation.y -= axes[2] * rotateSpeed;
-                    }
-
-                    // 2. B 버튼 (카메라 리셋)
-                    if (buttons[5].pressed) {
-                        cameraRig.position.set(0, 0, 0);
-                        cameraRig.rotation.set(0, 0, 0);
-                    }
-
-                    // 3. 트리거 순간이동
+                    if (Math.abs(axes[3]) > 0.1) cameraRig.position.addScaledVector(lookDir, -axes[3] * moveSpeed);
+                    if (Math.abs(axes[2]) > 0.1) cameraRig.rotation.y -= axes[2] * rotateSpeed;
+                    if (buttons[5].pressed) { cameraRig.position.set(0, 0, 0); cameraRig.rotation.set(0, 0, 0); }
                     const triggerPressed = buttons[0].pressed;
                     if (triggerPressed) {
                         vrRay.visible = true;
@@ -571,10 +580,7 @@
                             vrRay.scale.z = 10;
                         }
                     } else {
-                        if (vrRay.visible && teleportTarget.visible) {
-                            // 순간이동 시 Y값 보정 (리그 위치 이동)
-                            cameraRig.position.copy(teleportTarget.position);
-                        }
+                        if (vrRay.visible && teleportTarget.visible) cameraRig.position.copy(teleportTarget.position);
                         vrRay.visible = false; teleportTarget.visible = false;
                     }
                 }
@@ -587,8 +593,7 @@
                     handleVRController();
                 } else {
                     if (isGyroEnabled && isMobile) {
-                        const euler = new THREE.Euler(deviceRotation.beta + Math.PI/2, deviceRotation.alpha, -deviceRotation.gamma, 'YXZ');
-                        perspCamera.quaternion.setFromEuler(euler);
+                        updateGyroRotation();
                     } else if (state.cam === 'iso' || isMobile || !document.pointerLockElement) {
                         oControls.update();
                     }
@@ -657,6 +662,10 @@
             window.addEventListener('resize', () => { 
                 renderer.setSize(window.innerWidth, window.innerHeight); 
                 perspCamera.aspect = window.innerWidth/window.innerHeight; perspCamera.updateProjectionMatrix(); 
+                screenOrientation = window.orientation || 0;
+            });
+            window.addEventListener('orientationchange', () => {
+                screenOrientation = window.orientation || 0;
             });
             document.addEventListener('keydown', e => { 
                 switch(e.code) { 
