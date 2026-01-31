@@ -18,6 +18,7 @@
             font-family: var(--font-main); color: #1d1d1f;
             user-select: none; -webkit-user-select: none;
             -webkit-font-smoothing: antialiased;
+            touch-action: none;
         }
         /* Landing Page */
         #landing-page {
@@ -93,22 +94,12 @@
         .panel.minimized .panel-content { display: none; }
         .toggle-btn { padding: 0; border:none; background:none; cursor: pointer; font-size: 12px; opacity: 0.5; }
 
-        /* Controls */
-        .row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-        .label { color: #86868b; font-size: 9px; font-weight: 800; }
-        .btn-group-full { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-        .row-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
-        input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; background: rgba(0,0,0,0.08); border-radius: 2px; outline: none; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: white; border: 1.5px solid var(--brand-color); border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.1); cursor: pointer; }
-
         /* AI & Toast */
         #ai-response { font-size: 11px; line-height: 1.5; color: #444; background: rgba(0,0,0,0.04); padding: 10px; border-radius: 10px; max-height: 140px; overflow-y: auto; white-space: pre-wrap; }
         #copyright { position: absolute; bottom: 10px; width: 100%; text-align: center; font-size: 8px; color: rgba(0,0,0,0.2); pointer-events: none; }
         #toast { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 15px; opacity: 0; transition: opacity 0.4s; font-size: 12px; z-index: 4000; pointer-events: none; }
         #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: var(--brand-color); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 1; }
-        #help-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.25); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 3000; }
-        .help-content { background: white; width: 340px; padding: 28px; border-radius: 24px; box-shadow: var(--shadow-premium); position: relative; }
-        .close-help-btn { position: absolute; top: 20px; right: 20px; cursor: pointer; opacity: 0.5; }
+        
         #VRButton { display: none !important; }
 
         @media (max-width: 768px) {
@@ -161,7 +152,6 @@
             <div class="divider"></div>
             <button id="btn-reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>RESET</button>
             <button id="btn-vr" style="background:#1d1d1f; color:#fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/></svg>VR MODE</button>
-            <button id="btn-help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>GUIDE</button>
             <button id="btn-capture" style="color:var(--brand-color)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>CAPTURE</button>
         </div>
         
@@ -172,7 +162,6 @@
                     <div class="btn-group-full"><div class="row-grid"><button id="bg-sky" class="active">SKY</button><button id="bg-solid">SOLID</button><button id="bg-hdr">HDR</button></div></div>
                     <div id="solid-picker-row" style="display:none;" class="row"><span class="label">COLOR</span><input type="color" id="bg-color-val" value="#ffffff" style="border:none;background:none;width:24px;height:24px;cursor:pointer;"></div>
                     <div id="hdr-upload-row" style="display:none;" class="row"><button id="btn-upload-hdr-manual" style="width:100%;background:rgba(0,0,0,0.05);padding:6px;font-size:10px;">UPLOAD HDR</button><input type="file" id="hdr-input" accept=".hdr,.exr" style="display:none;"></div>
-                    <div class="row"><span class="label">LINE WEIGHT</span><input type="range" id="toon-weight" min="0" max="5" step="0.1" value="1.5"></div>
                 </div>
             </div>
             
@@ -180,7 +169,7 @@
                 <div class="panel-header">Section Analysis <button class="toggle-btn" onclick="this.closest('.panel').classList.toggle('minimized')">－</button></div>
                 <div class="panel-content">
                     <div class="row" style="background:rgba(0,0,0,0.03); padding:6px; border-radius:10px;"><span class="label">SECTION</span><button id="cut-toggle" class="active" style="padding:4px 8px; min-width:60px; font-size:10px;">ON</button></div>
-                    <div class="btn-group-full"><div class="row-grid"><button id="axis-x" class="axis-btn">X</button><button id="axis-y" class="axis-btn active">Y</button><button id="axis-z" class="axis-btn">Z</button></div><button id="axis-flip" style="width:100%; background:rgba(175,82,222,0.1); color:var(--brand-color); padding:8px; border-radius:10px; font-size:10px;">REVERSE AXIS</button></div>
+                    <div class="btn-group-full"><div class="row-grid"><button id="axis-x" class="axis-btn">X</button><button id="axis-y" class="axis-btn active">Y</button><button id="axis-z" class="axis-btn">Z</button></div></div>
                     <div class="row"><span class="label">OFFSET</span><input type="range" id="cut-slider" min="-100" max="100" value="100"></div>
                 </div>
             </div>
@@ -189,33 +178,15 @@
                 <div class="panel-header">✨ AI Insights <button class="toggle-btn" onclick="this.closest('.panel').classList.toggle('minimized')">－</button></div>
                 <div class="panel-content">
                     <div id="ai-response">공간 분석을 시작하려면 아래 버튼을 누르세요.</div>
-                    <div class="btn-group-full">
-                        <button id="btn-ai-analyze" style="background: var(--brand-color); color: white; padding: 10px; border-radius: 10px; font-size:10px;">
-                            ✨ ANALYZE VIEW
-                        </button>
-                        <button id="btn-ai-tts" style="background: rgba(0,0,0,0.05); padding: 8px; border-radius: 10px; font-size:10px; display:none;">
-                            🔊 AUDIO GUIDE
-                        </button>
-                    </div>
+                    <button id="btn-ai-analyze" style="background: var(--brand-color); color: white; padding: 10px; border-radius: 10px; font-size:10px; cursor:pointer;">
+                        ✨ ANALYZE VIEW
+                    </button>
                 </div>
             </div>
         </div>
 
         <div id="copyright">COPYRIGHT BY KIL ARCHITECTURE 2026</div>
         <div id="toast">Message</div>
-    </div>
-    
-    <div id="help-modal">
-        <div class="help-content">
-            <div class="close-help-btn" onclick="document.getElementById('help-modal').style.display='none'">✕</div>
-            <h2 style="margin:0; font-size: 18px; font-weight: 800;">Navigation Guide</h2>
-            <div style="font-size: 12px; margin-top: 15px; line-height: 1.6;">
-                <b>PC</b>: W/S/A/D 이동, E/Q 상승/하강, Space 점프<br>
-                <b>ESC</b>: 화면 조작 중지 및 마우스 자유 상태<br>
-                <b>클릭</b>: 다시 화면을 움직이려면 화면의 빈 곳을 클릭하세요.<br>
-                <b>AI</b>: 현재 보고 있는 화면을 분석하여 건축적 통찰을 제공합니다.
-            </div>
-        </div>
     </div>
     
     <script type="module">
@@ -228,10 +199,9 @@
         import { VRButton } from 'three/addons/webxr/VRButton.js';
         
         let scene, renderer, perspCamera, orthoCamera, activeCamera, pControls, oControls;
-        let cameraRig, model = null, modelGroup = new THREE.Group();
+        let model = null, modelGroup = new THREE.Group();
         let originalMaterials = new Map(), envTexture, skyColor = new THREE.Color(0x87CEEB), bgColor = new THREE.Color(0xffffff);
         let sunLight, hemiLight, ambientLight;
-        let controllerR, vrTeleportRay;
         let isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 100);
         let clipAxis = 'y', clipNegate = true;
@@ -241,20 +211,21 @@
         let speedMult = 1, isGrounded = false, raycaster = new THREE.Raycaster();
         let modelMaxDim = 50;
         const apiKey = "";
-        let lastAIAnalysis = "";
+        
+        // VR 용 변수
+        let controllerR, vrRay, teleportTarget;
+        const cameraRig = new THREE.Group();
 
         // GITHUB 샘플 모델 경로
-        const GITHUB_SAMPLE_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf';
+        const GITHUB_SAMPLE_URL = './model.glb';
 
         init();
 
         function init() {
-            // 1. Scene Setup
             scene = new THREE.Scene();
             scene.background = skyColor;
             scene.add(modelGroup);
 
-            // 2. Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: false });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -264,23 +235,20 @@
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // 3. Cameras
             const aspect = window.innerWidth / window.innerHeight;
-            cameraRig = new THREE.Group();
-            scene.add(cameraRig);
-
             perspCamera = new THREE.PerspectiveCamera(60, aspect, 0.1, 20000);
             perspCamera.position.set(50, 50, 50);
+
+            // VR 을 위한 리그 설정
+            scene.add(cameraRig);
             cameraRig.add(perspCamera);
 
-            // Orthographic Camera 초기화 - 가시 범위를 줌 레벨에 따라 조정 가능하도록
             orthoCamera = new THREE.OrthographicCamera(-50*aspect, 50*aspect, 50, -50, 0.1, 20000);
             orthoCamera.position.set(100, 100, 100);
             orthoCamera.lookAt(0,0,0);
 
             activeCamera = perspCamera;
 
-            // 4. Lighting
             ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
             scene.add(ambientLight);
             hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
@@ -290,42 +258,59 @@
             sunLight.castShadow = true;
             scene.add(sunLight);
 
-            // 5. Environment
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
             envTexture = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
             scene.environment = envTexture;
 
-            // 6. Controls
             oControls = new OrbitControls(perspCamera, renderer.domElement);
             oControls.enableDamping = true;
-            oControls.enabled = false; 
+            oControls.enabled = isMobile;
 
             pControls = new PointerLockControls(perspCamera, document.body);
             
             pControls.addEventListener('unlock', () => {
                 document.getElementById('crosshair').style.display = 'none';
-                oControls.enabled = false;
-                
-                // 시점 동기화
-                const dir = new THREE.Vector3();
-                perspCamera.getWorldDirection(dir);
-                oControls.target.copy(perspCamera.position).addScaledVector(dir, 10);
-                oControls.update();
-                
-                showToast("Paused (Click to continue)");
+                if (!isMobile) {
+                    oControls.enabled = false;
+                    const dir = new THREE.Vector3();
+                    perspCamera.getWorldDirection(dir);
+                    oControls.target.copy(perspCamera.position).addScaledVector(dir, 10);
+                    oControls.update();
+                }
             });
 
             pControls.addEventListener('lock', () => {
-                document.getElementById('crosshair').style.display = 'block';
-                oControls.enabled = false;
+                if (!isMobile) {
+                    document.getElementById('crosshair').style.display = 'block';
+                    oControls.enabled = false;
+                }
             });
 
-            // 7. VR
+            // VR 버튼 및 컨트롤러 설정
             const vrBtnEl = VRButton.createButton(renderer);
             vrBtnEl.id = "VRButton";
             document.body.appendChild(vrBtnEl);
 
-            // 8. Init Calls
+            // 오른쪽 컨트롤러만 설정
+            controllerR = renderer.xr.getController(0); // 첫 번째 컨트롤러
+            cameraRig.add(controllerR);
+
+            // 순간이동 가이드 레이저
+            const geometry = new THREE.BufferGeometry().setFromPoints([ new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1) ]);
+            const material = new THREE.LineBasicMaterial({ color: 0xAF52DE, transparent: true, opacity: 0.5 });
+            vrRay = new THREE.Line(geometry, material);
+            vrRay.scale.z = 10;
+            vrRay.visible = false;
+            controllerR.add(vrRay);
+
+            // 순간이동 타겟 마커
+            teleportTarget = new THREE.Mesh(
+                new THREE.RingGeometry(0.2, 0.25, 32).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0xAF52DE, transparent: true, opacity: 0.8 })
+            );
+            teleportTarget.visible = false;
+            scene.add(teleportTarget);
+
             setupEvents();
             setupUI();
             makePanelsDraggable();
@@ -337,26 +322,24 @@
             const loadingStatus = document.getElementById('loading-status');
             if(loadingStatus) {
                 loadingStatus.style.display = 'block';
-                loadingStatus.innerText = "SCENE LOADING...";
+                loadingStatus.innerText = "모델 불러오는 중...";
             }
 
-            document.getElementById('landing-page').style.display = 'none';
-            document.getElementById('ui-layer').style.display = 'block';
-            
             const loader = new GLTFLoader();
             loader.load(url, (gltf) => {
+                document.getElementById('landing-page').style.display = 'none';
+                document.getElementById('ui-layer').style.display = 'block';
                 onModelLoaded(gltf);
             }, (xhr) => {
-                if(loadingStatus) loadingStatus.innerText = `LOADING... ${(xhr.loaded/xhr.total*100).toFixed(0)}%`;
+                if(loadingStatus) loadingStatus.innerText = `진행도: ${(xhr.loaded/xhr.total*100).toFixed(0)}%`;
             }, (err) => {
-                showToast("Failed to load model");
+                showToast("모델 로드 실패. 파일 경로를 확인하세요.");
+                console.error(err);
+                if(loadingStatus) loadingStatus.style.display = 'none';
             });
         }
 
         function onModelLoaded(gltf) {
-            const loadingStatus = document.getElementById('loading-status');
-            if(loadingStatus) loadingStatus.style.display = 'none';
-
             if(model) modelGroup.remove(model);
             model = gltf.scene;
 
@@ -371,12 +354,6 @@
                     c.castShadow = true; c.receiveShadow = true;
                     originalMaterials.set(c.uuid, c.material);
                     applyClipping(c.material);
-                    const edges = new THREE.EdgesGeometry(c.geometry, 35);
-                    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.8 }));
-                    line.material.clippingPlanes = [clipPlane];
-                    line.visible = false;
-                    line.userData.isEdge = true;
-                    c.add(line);
                 }
             });
             modelGroup.add(model);
@@ -394,25 +371,9 @@
             oControls.target.set(0,0,0);
             oControls.update();
             
-            showToast("Project Loaded");
+            showToast("프로젝트 로드 완료");
         }
 
-        // HDR 로드 함수
-        function loadHDR(url) {
-            showToast("Loading HDR...");
-            new RGBELoader().load(url, (texture) => {
-                texture.mapping = THREE.EquirectangularReflectionMapping;
-                scene.background = texture;
-                scene.environment = texture;
-                showToast("HDR Applied");
-            }, undefined, (err) => {
-                showToast("HDR Load Error");
-            });
-        }
-
-        function applyClipping(m) { if(Array.isArray(m)) m.forEach(x => x.clippingPlanes = [clipPlane]); else m.clippingPlanes = [clipPlane]; }
-        function updateClipPlane(val) { const v = parseFloat(val); clipPlane.constant = clipNegate ? v : -v; clipPlane.normal.set(0,0,0); if(clipAxis==='x') clipPlane.normal.x=clipNegate?-1:1; if(clipAxis==='y') clipPlane.normal.y=clipNegate?-1:1; if(clipAxis==='z') clipPlane.normal.z=clipNegate?-1:1; }
-        
         function switchCam(mode) {
             state.cam = mode;
             ['cam-fly','cam-walk','cam-iso'].forEach(id => { 
@@ -421,15 +382,12 @@
             });
             
             if(mode === 'iso') { 
-                // ISO 뷰 최적화
-                const aspect = window.innerWidth / window.innerHeight;
                 const frustumSize = modelMaxDim * 2;
+                const aspect = window.innerWidth / window.innerHeight;
                 orthoCamera.left = -frustumSize * aspect / 2;
                 orthoCamera.right = frustumSize * aspect / 2;
                 orthoCamera.top = frustumSize / 2;
                 orthoCamera.bottom = -frustumSize / 2;
-                
-                // 45도 각도 배치
                 orthoCamera.position.set(modelMaxDim, modelMaxDim, modelMaxDim);
                 orthoCamera.lookAt(0,0,0);
                 orthoCamera.updateProjectionMatrix();
@@ -441,21 +399,17 @@
             } else { 
                 activeCamera = perspCamera; 
                 oControls.object = perspCamera; 
-                oControls.enabled = false; 
+                oControls.enabled = isMobile;
             }
         }
 
         function setupUI() {
             document.getElementById('btn-load-sample').addEventListener('click', () => loadGLB(GITHUB_SAMPLE_URL));
             
-            const fileTrigger = document.getElementById('btn-trigger-file');
             const fileInput = document.getElementById('file-input');
-            fileTrigger.addEventListener('click', () => fileInput.click());
-            
+            document.getElementById('btn-trigger-file').addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', (e) => {
-                if(e.target.files && e.target.files[0]) {
-                    loadGLB(URL.createObjectURL(e.target.files[0]));
-                }
+                if(e.target.files && e.target.files[0]) loadGLB(URL.createObjectURL(e.target.files[0]));
             });
 
             document.getElementById('btn-home').addEventListener('click', () => location.reload());
@@ -466,17 +420,24 @@
             document.getElementById('cam-iso').addEventListener('click', () => switchCam('iso'));
             
             document.getElementById('btn-reset').addEventListener('click', () => {
+                cameraRig.position.set(0, 0, 0); // VR 리그 초기화
+                perspCamera.position.set(modelMaxDim*1.5, modelMaxDim*1.5, modelMaxDim*1.5);
                 oControls.target.set(0,0,0);
-                const d = modelMaxDim * 1.5;
-                perspCamera.position.set(d, d, d);
                 oControls.update();
             });
 
-            document.getElementById('btn-help').addEventListener('click', () => document.getElementById('help-modal').style.display = 'flex');
+            document.getElementById('btn-vr').addEventListener('click', () => {
+                const hiddenBtn = document.getElementById('VRButton');
+                if(hiddenBtn) hiddenBtn.click();
+                else showToast("VR을 지원하지 않는 환경입니다.");
+            });
+
             document.getElementById('btn-capture').addEventListener('click', () => {
                 renderer.render(scene, activeCamera);
-                const link = document.createElement('a'); link.download = 'capture.png';
-                link.href = renderer.domElement.toDataURL('image/png'); link.click();
+                const link = document.createElement('a'); 
+                link.download = 'kil_capture.png';
+                link.href = renderer.domElement.toDataURL('image/png'); 
+                link.click();
             });
 
             const bindClick = (id, fn) => { const el = document.getElementById(id); if(el) el.addEventListener('click', fn); };
@@ -484,44 +445,110 @@
             bindClick('bg-solid', () => setBG('solid')); 
             bindClick('bg-hdr', () => setBG('hdr'));
             
-            // [수정] HDR 업로드 버튼 및 인풋 연동
-            const hdrManualBtn = document.getElementById('btn-upload-hdr-manual');
             const hdrInput = document.getElementById('hdr-input');
-            hdrManualBtn.addEventListener('click', () => hdrInput.click());
+            document.getElementById('btn-upload-hdr-manual').addEventListener('click', () => hdrInput.click());
             hdrInput.addEventListener('change', (e) => {
                 if(e.target.files && e.target.files[0]) {
-                    loadHDR(URL.createObjectURL(e.target.files[0]));
+                    const url = URL.createObjectURL(e.target.files[0]);
+                    new RGBELoader().load(url, (t) => {
+                        t.mapping = THREE.EquirectangularReflectionMapping;
+                        scene.background = t; scene.environment = t;
+                        showToast("HDR 적용됨");
+                    });
                 }
             });
 
-            document.getElementById('bg-color-val').addEventListener('input', (e) => { bgColor.set(e.target.value); if(state.bg==='solid') scene.background=bgColor; });
-            document.getElementById('toon-weight').addEventListener('input', (e) => {
-                if(model) { const v = parseFloat(e.target.value); model.traverse(c=>{ if(c.userData.isEdge) { c.visible=v>0; c.material.opacity=Math.min(v/2,1); } }); }
-            });
-
-            bindClick('cut-toggle', (e) => { 
+            document.getElementById('cut-toggle').addEventListener('click', (e) => { 
                 state.cutEnabled = !state.cutEnabled; renderer.localClippingEnabled = state.cutEnabled; 
                 e.target.classList.toggle('active'); e.target.innerText = state.cutEnabled ? 'ON' : 'OFF'; 
             });
             
-            const setAxis = (ax) => { clipAxis = ax; ['axis-x','axis-y','axis-z'].forEach(id => document.getElementById(id).classList.toggle('active', id===`axis-${ax}`)); updateClipPlane(document.getElementById('cut-slider').value); };
+            const setAxis = (ax) => { clipAxis = ax; updateClipPlane(document.getElementById('cut-slider').value); };
             bindClick('axis-x', ()=>setAxis('x')); bindClick('axis-y', ()=>setAxis('y')); bindClick('axis-z', ()=>setAxis('z'));
-            bindClick('axis-flip', () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); });
             document.getElementById('cut-slider').addEventListener('input', (e)=>updateClipPlane(e.target.value));
 
-            bindClick('btn-ai-analyze', getAIAnalysis);
-            bindClick('btn-ai-tts', playAudioGuide);
+            document.getElementById('btn-ai-analyze').addEventListener('click', getAIAnalysis);
+        }
+
+        // VR 조작 핸들러
+        function handleVRController() {
+            const session = renderer.xr.getSession();
+            if (!session) return;
+
+            for (const source of session.inputSources) {
+                // 왼쪽 컨트롤러 무시 (Quest 2 에서 handedness 가 'left')
+                if (source.handedness === 'left') continue;
+
+                if (source.handedness === 'right' && source.gamepad) {
+                    const gamepad = source.gamepad;
+                    const axes = gamepad.axes; // 2, 3 이 조이스틱
+                    const buttons = gamepad.buttons; // 0: Trigger, 4: A, 5: B
+
+                    // 1. 조이스틱 이동 (앞/뒤/좌/우)
+                    const speed = 0.05;
+                    const lookDir = new THREE.Vector3();
+                    perspCamera.getWorldDirection(lookDir);
+                    lookDir.y = 0; // 바닥 평면 이동을 위해 Y축 고정
+                    lookDir.normalize();
+
+                    const sideDir = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), lookDir).normalize();
+
+                    // 조이스틱 입력 (axes[3]은 상하, axes[2]는 좌우)
+                    if (Math.abs(axes[3]) > 0.1) {
+                        cameraRig.position.addScaledVector(lookDir, -axes[3] * speed);
+                    }
+                    if (Math.abs(axes[2]) > 0.1) {
+                        cameraRig.position.addScaledVector(sideDir, axes[2] * speed);
+                    }
+
+                    // 2. B 버튼 (카메라 리셋) - buttons[5]
+                    if (buttons[5].pressed) {
+                        cameraRig.position.set(0, 0, 0);
+                        perspCamera.position.set(modelMaxDim*1.5, modelMaxDim*1.5, modelMaxDim*1.5);
+                    }
+
+                    // 3. 트리거 순간이동 (레이캐스팅) - buttons[0]
+                    const triggerPressed = buttons[0].pressed;
+                    if (triggerPressed) {
+                        vrRay.visible = true;
+                        
+                        const tempMatrix = new THREE.Matrix4();
+                        tempMatrix.identity().extractRotation(controllerR.matrixWorld);
+                        
+                        raycaster.ray.origin.setFromMatrixPosition(controllerR.matrixWorld);
+                        raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+                        const intersects = raycaster.intersectObjects(modelGroup.children, true);
+                        if (intersects.length > 0) {
+                            teleportTarget.position.copy(intersects[0].point);
+                            teleportTarget.visible = true;
+                            vrRay.scale.z = intersects[0].distance;
+                        } else {
+                            teleportTarget.visible = false;
+                            vrRay.scale.z = 10;
+                        }
+                    } else {
+                        // 트리거를 떼는 순간 순간이동 실행
+                        if (vrRay.visible && teleportTarget.visible) {
+                            cameraRig.position.copy(teleportTarget.position);
+                            showToast("순간이동 완료");
+                        }
+                        vrRay.visible = false;
+                        teleportTarget.visible = false;
+                    }
+                }
+            }
         }
 
         function animate() {
             renderer.setAnimationLoop(() => {
-                if(renderer.xr.isPresenting) {
-                    // VR Logic
+                if (renderer.xr.isPresenting) {
+                    handleVRController();
                 } else {
-                    if(state.cam === 'iso' || isMobile || !document.pointerLockElement) {
-                        if(oControls.enabled) oControls.update();
+                    if (state.cam === 'iso' || isMobile || !document.pointerLockElement) {
+                        oControls.update();
                     }
-                    if(document.pointerLockElement) {
+                    if (document.pointerLockElement) {
                         const delta = 0.016;
                         const speed = (state.cam === 'walk' ? 12 : 20) * speedMult;
                         const lookDir = new THREE.Vector3(); perspCamera.getWorldDirection(lookDir);
@@ -531,22 +558,19 @@
                         if(move.f) moveVec.addScaledVector(forward, speed*delta); if(move.b) moveVec.addScaledVector(forward, -speed*delta);
                         if(move.l) moveVec.addScaledVector(right, -speed*delta); if(move.r) moveVec.addScaledVector(right, speed*delta);
                         
-                        const oldPos = perspCamera.position.clone();
                         if(state.cam === 'fly') {
                             if(move.u) moveVec.y += speed*delta; if(move.d) moveVec.y -= speed*delta;
                             perspCamera.position.add(moveVec);
                         } else {
                             perspCamera.position.x += moveVec.x; perspCamera.position.z += moveVec.z;
                             velocity.y -= 19.6 * delta; perspCamera.position.y += velocity.y * delta;
-                            raycaster.set(new THREE.Vector3(perspCamera.position.x, oldPos.y + 1, perspCamera.position.z), new THREE.Vector3(0,-1,0));
+                            raycaster.set(new THREE.Vector3(perspCamera.position.x, perspCamera.position.y, perspCamera.position.z), new THREE.Vector3(0,-1,0));
                             const hits = raycaster.intersectObjects(modelGroup.children, true);
                             if(hits.length > 0) {
                                 const targetY = hits[0].point.y + 1.7;
-                                if(Math.abs(targetY - perspCamera.position.y) < 2.5) {
-                                    perspCamera.position.y = THREE.MathUtils.lerp(perspCamera.position.y, targetY, 0.15);
+                                if(Math.abs(targetY - perspCamera.position.y) < 3) {
+                                    perspCamera.position.y = THREE.MathUtils.lerp(perspCamera.position.y, targetY, 0.1);
                                     velocity.y = 0; isGrounded = true;
-                                } else if(targetY > perspCamera.position.y) {
-                                    perspCamera.position.copy(oldPos);
                                 }
                             }
                         }
@@ -556,41 +580,20 @@
             });
         }
 
-        function setBG(type) { state.bg = type; ['bg-sky','bg-solid','bg-hdr'].forEach(id => document.getElementById(id).classList.toggle('active', id===`bg-${type}`)); document.getElementById('solid-picker-row').style.display = type==='solid'?'flex':'none'; document.getElementById('hdr-upload-row').style.display = type==='hdr'?'flex':'none'; if(type==='sky'){scene.background=skyColor; scene.environment=envTexture;} else if(type==='solid'){scene.background=bgColor; scene.environment=null;} else {scene.background=envTexture; scene.environment=envTexture;} }
+        function applyClipping(m) { if(Array.isArray(m)) m.forEach(x => x.clippingPlanes = [clipPlane]); else m.clippingPlanes = [clipPlane]; }
+        function updateClipPlane(val) { const v = parseFloat(val); clipPlane.constant = clipNegate ? v : -v; clipPlane.normal.set(0,0,0); if(clipAxis==='x') clipPlane.normal.x=-1; if(clipAxis==='y') clipPlane.normal.y=-1; if(clipAxis==='z') clipPlane.normal.z=-1; }
+        function setBG(type) { state.bg = type; document.getElementById('solid-picker-row').style.display = type==='solid'?'flex':'none'; document.getElementById('hdr-upload-row').style.display = type==='hdr'?'flex':'none'; if(type==='sky'){scene.background=skyColor; scene.environment=envTexture;} else if(type==='solid'){scene.background=bgColor; scene.environment=null;} else {scene.background=envTexture; scene.environment=envTexture;} }
+        function toggleMode(mode) { state.mode = mode; if(model) model.traverse(c=>{ if(c.isMesh) { c.material = mode==='render' ? originalMaterials.get(c.uuid) : new THREE.MeshBasicMaterial({color:0xffffff, side:2}); applyClipping(c.material); } }); }
         
-        function toggleMode(mode) { 
-            state.mode = mode; 
-            document.getElementById('mode-render').classList.toggle('active', mode==='render'); 
-            document.getElementById('mode-white').classList.toggle('active', mode!=='render'); 
-            if(mode==='white'){setBG(state.bg); ambientLight.intensity=1.2;} else {scene.background=new THREE.Color(0xffffff); ambientLight.intensity=2.0;} 
-            if(model) model.traverse(c=>{ 
-                if(c.isMesh) { 
-                    c.material = mode==='render' ? originalMaterials.get(c.uuid) : new THREE.MeshBasicMaterial({color:0xffffff, side:2}); 
-                    applyClipping(c.material); 
-                    c.children.forEach(ch=>{if(ch.userData.isEdge) ch.visible=mode==='white'&&document.getElementById('toon-weight').value>0;}); 
-                } 
-            }); 
-        }
-
         function setupEvents() {
             window.addEventListener('resize', () => { 
                 renderer.setSize(window.innerWidth, window.innerHeight); 
-                perspCamera.aspect = window.innerWidth/window.innerHeight; 
-                perspCamera.updateProjectionMatrix(); 
-                // Ortho Camera 업데이트
-                const frustumSize = modelMaxDim * 2;
-                const aspect = window.innerWidth / window.innerHeight;
-                orthoCamera.left = -frustumSize * aspect / 2;
-                orthoCamera.right = frustumSize * aspect / 2;
-                orthoCamera.top = frustumSize / 2;
-                orthoCamera.bottom = -frustumSize / 2;
-                orthoCamera.updateProjectionMatrix();
+                perspCamera.aspect = window.innerWidth/window.innerHeight; perspCamera.updateProjectionMatrix(); 
             });
             document.addEventListener('keydown', e => { 
                 switch(e.code) { 
                     case 'KeyW': move.f=1; break; case 'KeyS': move.b=1; break; case 'KeyA': move.l=1; break; case 'KeyD': move.r=1; break; 
                     case 'KeyE': move.u=1; break; case 'KeyQ': move.d=1; break; case 'ShiftLeft': speedMult=2; break; 
-                    case 'Space': if(state.cam==='walk' && isGrounded) { velocity.y = 7; isGrounded=false; } break;
                 } 
             });
             document.addEventListener('keyup', e => { 
@@ -609,10 +612,7 @@
         function makePanelsDraggable() { document.querySelectorAll('.panel').forEach(p => { const h=p.querySelector('.panel-header'); let isD=false, sx, sy, il, it; h.onmousedown=(e)=>{ isD=true; sx=e.clientX; sy=e.clientY; il=p.offsetLeft; it=p.offsetTop; document.onmousemove=(e)=>{ if(isD) { p.style.left=(il+e.clientX-sx)+'px'; p.style.top=(it+e.clientY-sy)+'px'; } }; document.onmouseup=()=>{ isD=false; document.onmousemove=null; }; }; }); }
         function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.style.opacity=1; setTimeout(()=>t.style.opacity=0, 2000); }
         
-        async function fetchWithRetry(url, options) { try { const r=await fetch(url, options); if(r.ok) return await r.json(); } catch(e){} return null; }
-        async function getAIAnalysis() { if(!model) return; document.getElementById('btn-ai-analyze').innerText="..."; try { renderer.render(scene, activeCamera); const b64 = renderer.domElement.toDataURL('image/png').split(',')[1]; const p = "분석해줘. 한국어 2문장."; const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:p},{inlineData:{mimeType:"image/png", data:b64}}]}]})}); lastAIAnalysis = res?.candidates?.[0]?.content?.parts?.[0]?.text || "분석 실패"; document.getElementById('ai-response').innerText = lastAIAnalysis; document.getElementById('btn-ai-tts').style.display='block'; } catch(e){} finally { document.getElementById('btn-ai-analyze').innerText="ANALYZE"; } }
-        async function playAudioGuide() { if(!lastAIAnalysis) return; try { const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:lastAIAnalysis}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:"Aoede"}}}}, model:"gemini-2.5-flash-preview-tts"})}); const blob = pcmToWav(res.candidates[0].content.parts[0].inlineData.data, 24000); new Audio(URL.createObjectURL(blob)).play(); } catch(e){} }
-        function pcmToWav(b64, rate) { const b=Uint8Array.from(atob(b64), c=>c.charCodeAt(0)); const h=new ArrayBuffer(44); const v=new DataView(h); const s=(str,off)=>{for(let i=0;i<str.length;i++)v.setUint8(off+i,str.charCodeAt(i))}; s('RIFF',0); v.setUint32(4,36+b.length,true); s('WAVE',8); s('fmt ',12); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true); v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); s('data',36); v.setUint32(40,b.length,true); return new Blob([h, b], {type:'audio/wav'}); }
+        async function getAIAnalysis() { if(!model) return; document.getElementById('btn-ai-analyze').innerText="분석 중..."; try { renderer.render(scene, activeCamera); const b64 = renderer.domElement.toDataURL('image/png').split(',')[1]; const p = "건축 전문가로서 이 장면을 분석해줘. 한국어 2문장."; const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:p},{inlineData:{mimeType:"image/png", data:b64}}]}]})}).then(r=>r.json()); document.getElementById('ai-response').innerText = res?.candidates?.[0]?.content?.parts?.[0]?.text || "분석 결과 없음"; } catch(e){ showToast("AI 분석 오류"); } finally { document.getElementById('btn-ai-analyze').innerText="ANALYZE VIEW"; } }
     </script>
 </body>
 </html>
