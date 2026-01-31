@@ -80,7 +80,7 @@
         .row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; gap: 10px; }
         .label { font-weight: 600; color: #444; }
 
-        /* 상단 툴바 (스크롤 가능) */
+        /* 상단 툴바 */
         #top-bar { 
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%); 
             display: flex; gap: 6px; padding: 8px; background: var(--bg-light);
@@ -92,7 +92,7 @@
 
         /* 모바일 이동 패드 */
         #mobile-dpad {
-            display: none; position: absolute; left: 30px; bottom: 30px;
+            display: none; position: absolute; left: 20px; bottom: 20px;
             width: 140px; height: 140px; z-index: 100;
             grid-template-areas: ". up ." "left . right" ". down .";
             gap: 10px;
@@ -116,7 +116,12 @@
             opacity: 0; transition: opacity 0.4s; font-size: 13px; pointer-events: none; z-index: 1000;
             text-align: center;
         }
-        #mobile-menu-btn { display: none; width:44px; height:44px; border-radius:12px; font-size:18px; position: absolute; top: 20px; right: 20px; z-index: 101; }
+        
+        /* 옵션 버튼 위치 이동: 우측 하단 */
+        #mobile-menu-btn { 
+            display: none; width:44px; height:44px; border-radius:12px; font-size:18px; 
+            position: absolute; bottom: 20px; right: 20px; z-index: 101; 
+        }
 
         #btn-gyro.active { background: #5856D6; border-color: #5856D6; color: white; }
 
@@ -266,12 +271,10 @@
         let speedMult = 1;
         const raycaster = new THREE.Raycaster();
 
-        // 자이로 조작을 위한 변수들
-        let gyroObject = new THREE.Object3D();
-        let deviceEuler = new THREE.Euler();
-        let deviceQuaternion = new THREE.Quaternion();
-        const screenQuaternion = new THREE.Quaternion();
-        const worldQuaternion = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+        // 자이로 보정을 위한 시점 변수
+        let gyroYaw = 0;
+        let gyroPitch = 0;
+        let lastAlpha = null;
 
         init();
         animate();
@@ -442,26 +445,29 @@
                 }
             });
             
-            // 자이로 센서 데이터 업데이트
+            // 매직 윈도우 스타일의 자이로 보정 로직 (뒤틀림 방지)
             window.addEventListener('deviceorientation', (e) => {
                 if (!state.gyro) return;
                 
-                // 센서 값 (도 단위)
-                const alpha = e.alpha ? THREE.MathUtils.degToRad(e.alpha) : 0; // Z축 (나침반)
-                const beta = e.beta ? THREE.MathUtils.degToRad(e.beta) : 0;   // X축 (앞뒤)
-                const gamma = e.gamma ? THREE.MathUtils.degToRad(e.gamma) : 0; // Y축 (좌우)
-                const orient = window.orientation ? THREE.MathUtils.degToRad(window.orientation) : 0;
+                if (lastAlpha === null) {
+                    lastAlpha = e.alpha;
+                    return;
+                }
 
-                deviceEuler.set(beta, alpha, -gamma, 'YXZ');
-                deviceQuaternion.setFromEuler(deviceEuler);
+                // 1. Yaw (좌우 회전 - alpha 기반)
+                // 단순히 alpha 값을 사용하면 초기 방향에 따라 비틀릴 수 있음
+                // 여기서는 기기의 기울기(beta, gamma)를 통해 시선 각도(Euler)를 재계산
                 
-                // 화면 회전에 따른 보정
-                screenQuaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -orient);
-                
-                // 최종 카메라 방향 결정
-                perspCamera.quaternion.copy(worldQuaternion);
-                perspCamera.quaternion.multiply(deviceQuaternion);
-                perspCamera.quaternion.multiply(screenQuaternion);
+                const alpha = e.alpha ? THREE.MathUtils.degToRad(e.alpha) : 0;
+                const beta = e.beta ? THREE.MathUtils.degToRad(e.beta) : 0;
+                const gamma = e.gamma ? THREE.MathUtils.degToRad(e.gamma) : 0;
+
+                // 시점 비틀림(Roll)을 제거하기 위해 수동으로 Euler 각도 적용
+                // YXZ 순서로 적용하되, Roll(Z축)은 0으로 고정하여 수평 유지
+                perspCamera.rotation.order = 'YXZ';
+                perspCamera.rotation.x = beta - Math.PI / 2; // 상하
+                perspCamera.rotation.y = alpha;             // 좌우
+                perspCamera.rotation.z = 0;                 // 좌우 비틀림 제거
             });
 
             if(!isMobile) {
@@ -538,6 +544,7 @@
             document.getElementById('btn-gyro').classList.toggle('active', state.gyro);
             if (state.gyro) {
                 oControls.enabled = false;
+                lastAlpha = null;
                 showToast("자이로 뷰 활성화");
             } else {
                 disableGyro();
@@ -567,7 +574,7 @@
             
             document.getElementById('btn-reset').onclick = () => {
                 perspCamera.position.copy(initialCamPos); 
-                perspCamera.rotation.copy(initialCamRot);
+                perspCamera.rotation.set(initialCamRot.x, initialCamRot.y, initialCamRot.z);
                 oControls.target.set(0, 0, 0); 
                 velocity.set(0,0,0); 
                 showToast("카메라 리셋");
@@ -615,13 +622,6 @@
             document.getElementById('axis-z').onclick = () => setAxis('z');
             document.getElementById('axis-flip').onclick = () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); };
             document.getElementById('cut-slider').oninput = (e) => updateClipPlane(e.target.value);
-            document.getElementById('cut-color').oninput = (e) => {
-                const newColorStr = e.target.value;
-                cutLineColor.set(newColorStr);
-                if(model && state.mode === 'render') {
-                    model.traverse(c => { c.children.forEach(ch => { if(ch.userData.isEdge) ch.material.color.copy(cutLineColor); }); });
-                }
-            };
         }
 
         function makePanelsDraggable() {
@@ -650,6 +650,7 @@
                     const speed = (state.cam === 'walk' ? 40 : 60) * speedMult;
                     if (move.f || move.b || move.l || move.r) { velocity.z -= direction.z * speed * delta; velocity.x -= direction.x * speed * delta; }
                     
+                    // 시점 기반 이동 (자이로 상태 고려)
                     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(activeCamera.quaternion);
                     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(activeCamera.quaternion);
                     if (state.cam === 'walk') { forward.y = 0; right.y = 0; forward.normalize(); right.normalize(); }
@@ -665,7 +666,10 @@
                         if (intersects.length > 0) { const dist = intersects[0].distance; if (dist < 1.7) { activeCamera.position.y = intersects[0].point.y + 1.7; velocity.y = Math.max(0, velocity.y); } }
                         activeCamera.position.y += velocity.y * delta;
                     }
-                    if (isMobile && !state.gyro) { const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(activeCamera.quaternion); oControls.target.copy(activeCamera.position).add(lookDir); }
+                    if (isMobile && !state.gyro) { 
+                        const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(activeCamera.quaternion); 
+                        oControls.target.copy(activeCamera.position).add(lookDir); 
+                    }
                 }
                 renderer.render(scene, activeCamera);
             });
