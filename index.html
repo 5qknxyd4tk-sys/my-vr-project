@@ -128,7 +128,6 @@
             text-align: center;
         }
         
-        /* 옵션 버튼 위치: 우측 하단 고정 */
         #mobile-menu-btn { 
             display: none; width:44px; height:44px; border-radius:12px; font-size:18px; 
             position: absolute; bottom: 20px; right: 20px; z-index: 101; 
@@ -136,6 +135,17 @@
         }
 
         #btn-gyro.active { background: #5856D6; border-color: #5856D6; color: white; }
+        
+        /* VR 버튼 스타일 커스텀 */
+        #VRButton {
+            position: absolute !important;
+            bottom: auto !important;
+            top: 20px !important;
+            left: 50% !important;
+            transform: translateX(-50%) translateY(70px);
+            z-index: 1001;
+            display: none; /* 모델 로드 전까지 숨김 */
+        }
 
         @media (max-width: 768px) {
             .panel { display: none; }
@@ -159,12 +169,10 @@
     <div id="landing-page">
         <h1 style="margin:0; font-size:32px; font-weight:900; color:#222; letter-spacing:-0.03em;">3D GLB Explorer</h1>
         <div class="option-container">
-            <!-- 프로젝트 모델 즉시 로드 -->
             <div class="upload-box project-btn" id="btn-load-project">
                 <h2>PROJECT MODEL</h2>
-                <p>GitHub 저장소의 model.glb 로드</p>
+                <p>저장소의 model.glb 로드</p>
             </div>
-            <!-- 수동 파일 업로드 -->
             <div class="upload-box" onclick="document.getElementById('file-input').click()">
                 <h2>BROWSE FILES</h2>
                 <p>기기에 있는 모델 선택</p>
@@ -187,6 +195,7 @@
             <span style="width:1px; height:16px; background:#ddd; margin:auto 4px; flex-shrink:0;"></span>
             <button id="btn-reset">RESET</button>
             <button id="btn-gyro">GYRO</button>
+            <button id="btn-vr" style="background:#000; color:#fff;">VR VIEW</button>
             <button id="btn-help">GUIDE</button>
             <button id="btn-capture" style="color:var(--primary)">CAPTURE</button>
         </div>
@@ -204,8 +213,7 @@
                 <div class="help-grid">
                     <span class="key">W A S D</span><span>이동 (앞뒤좌우)</span>
                     <span class="key">E / Q</span><span>상승 / 하강 (Fly)</span>
-                    <span class="key">SHIFT</span><span>가속 이동</span>
-                    <span class="key">SPACE</span><span>점프 (Walk)</span>
+                    <span class="key">VR</span><span>메타퀘스트 가상현실 뷰</span>
                     <span class="key">GYRO</span><span>기기 회전 시점 조작</span>
                 </div>
             </div>
@@ -275,6 +283,7 @@
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+        import { VRButton } from 'three/addons/webxr/VRButton.js';
 
         let scene, renderer, perspCamera, orthoCamera, activeCamera, pControls, oControls;
         let model = null, modelGroup = new THREE.Group();
@@ -294,9 +303,6 @@
         let speedMult = 1;
         const raycaster = new THREE.Raycaster();
 
-        // 자이로 보정을 위한 시선 변수
-        let lastAlpha = null;
-
         init();
         animate();
 
@@ -313,7 +319,15 @@
             renderer.localClippingEnabled = true; 
             renderer.toneMapping = THREE.ReinhardToneMapping;
             renderer.toneMappingExposure = 1.3;
+            
+            // WebXR VR 지원 활성화
+            renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
+
+            // Three.js 표준 VR 버튼 생성 (숨김 상태로 시작)
+            const vrBtnEl = VRButton.createButton(renderer);
+            vrBtnEl.id = "VRButton";
+            document.body.appendChild(vrBtnEl);
 
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
             const roomEnv = new RoomEnvironment();
@@ -353,16 +367,10 @@
             switchCam('fly');
         }
 
-        // URL 파싱 오류 해결을 위한 개선된 모델 로드 함수
         function loadGLB(url) {
-            // Blob URL이 아니면 절대 경로로 정규화 시도
             let finalUrl = url;
             if (!url.startsWith('blob:') && !url.startsWith('http')) {
-                try {
-                    finalUrl = new URL(url, window.location.href).href;
-                } catch (e) {
-                    console.warn("URL Normalization failed:", e);
-                }
+                try { finalUrl = new URL(url, window.location.href).href; } catch (e) { }
             }
 
             showToast("모델을 가져오는 중...");
@@ -379,12 +387,7 @@
                         originalMaterials.set(c.uuid, c.material);
                         applyClipping(c.material);
                         const edges = new THREE.EdgesGeometry(c.geometry, 25);
-                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ 
-                            color: 0x000000, 
-                            polygonOffset: true, 
-                            polygonOffsetFactor: -1, 
-                            polygonOffsetUnits: -1 
-                        }));
+                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
                         line.material.clippingPlanes = [clipPlane];
                         line.visible = false; line.userData.isEdge = true;
                         c.add(line); 
@@ -404,21 +407,7 @@
                 initialCamRot.copy(perspCamera.rotation);
                 showToast("모델 로드 완료");
             }, undefined, (error) => {
-                console.error("GLTF Load Error:", error);
-                showToast("모델 로드 실패: 파일을 찾을 수 없거나 형식이 잘못되었습니다.");
-            });
-        }
-
-        function loadHDR(url) {
-            showToast("환경 정보를 불러오는 중...");
-            new RGBELoader().load(url, (texture) => {
-                texture.mapping = THREE.EquirectangularReflectionMapping;
-                envTexture = texture;
-                if (state.mode === 'render') {
-                    scene.environment = envTexture;
-                    if (state.bg === 'sky') scene.background = envTexture;
-                }
-                showToast("HDR 적용 완료");
+                showToast("모델 로드 실패: 파일을 찾을 수 없습니다.");
             });
         }
 
@@ -437,10 +426,6 @@
             if(clipAxis === 'z') clipPlane.normal.z = dir;
         }
 
-        const whiteMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xffffff, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide 
-        });
-
         function toggleMode(mode) {
             state.mode = mode;
             const isRender = mode === 'render';
@@ -458,9 +443,10 @@
             }
 
             if(!model) return;
+            const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide });
             model.traverse(c => {
                 if(c.isMesh) {
-                    c.material = isRender ? originalMaterials.get(c.uuid) : whiteMaterial.clone();
+                    c.material = isRender ? originalMaterials.get(c.uuid) : whiteMat.clone();
                     applyClipping(c.material);
                     c.children.forEach(ch => { if(ch.userData.isEdge) { ch.visible = !isRender; ch.material.color.set(0x000000); } });
                 }
@@ -492,31 +478,17 @@
                     case 'ShiftLeft': speedMult = 1; break;
                 }
             });
-            
-            // 매직 윈도우 스타일 자이로 보정 (뒤틀림 방지)
+
+            // 자이로 보정 로직
             window.addEventListener('deviceorientation', (e) => {
                 if (!state.gyro) return;
                 const alpha = e.alpha ? THREE.MathUtils.degToRad(e.alpha) : 0;
                 const beta = e.beta ? THREE.MathUtils.degToRad(e.beta) : 0;
-                
                 perspCamera.rotation.order = 'YXZ';
-                // Roll(Z)은 0으로 강제하여 수평을 유지하고 Pitch(X)와 Yaw(Y)만 제어
                 perspCamera.rotation.x = beta - Math.PI / 2;
                 perspCamera.rotation.y = alpha;
                 perspCamera.rotation.z = 0;
             });
-
-            if(!isMobile) {
-                document.addEventListener('click', (e) => {
-                    if(e.target.closest('button') || e.target.closest('input') || e.target.closest('.panel')) return;
-                    if(state.cam !== 'iso' && !pControls.isLocked && !state.gyro && !document.pointerLockElement) {
-                        try {
-                            const promise = pControls.lock();
-                            if (promise instanceof Promise) promise.catch(() => {});
-                        } catch (err) { }
-                    }
-                });
-            }
         }
 
         function setupMobileDpad() {
@@ -541,51 +513,40 @@
             
             if(isIso) {
                 activeCamera = orthoCamera; oControls.object = orthoCamera; oControls.enabled = true;
-                if(!isMobile && pControls.isLocked) pControls.unlock();
                 disableGyro();
             } else {
                 activeCamera = perspCamera; oControls.object = perspCamera; 
-                // 모바일에서는 수동 조작 시 OrbitControls 활용
                 oControls.enabled = isMobile && !state.gyro;
             }
             showToast(`모드: ${mode.toUpperCase()}`);
         }
 
         function toggleGyro() {
-            if (!isMobile) { showToast("자이로 모드는 모바일에서만 지원됩니다."); return; }
+            if (!isMobile) { showToast("모바일 기기에서만 가능합니다."); return; }
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(res => {
                     if (res === 'granted') applyGyroState();
-                    else showToast("센서 사용 권한이 필요합니다.");
-                }).catch(() => showToast("권한 요청에 실패했습니다."));
-            } else {
-                applyGyroState();
-            }
+                    else showToast("센서 권한이 필요합니다.");
+                }).catch(() => showToast("실패"));
+            } else { applyGyroState(); }
         }
 
         function applyGyroState() {
             state.gyro = !state.gyro;
             document.getElementById('btn-gyro').classList.toggle('active', state.gyro);
-            if (state.gyro) { oControls.enabled = false; showToast("자이로 뷰 활성화"); }
+            if (state.gyro) { oControls.enabled = false; showToast("자이로 뷰 활성"); }
             else disableGyro();
         }
 
         function disableGyro() {
             state.gyro = false;
-            const btn = document.getElementById('btn-gyro');
-            if (btn) btn.classList.remove('active');
+            if (document.getElementById('btn-gyro')) document.getElementById('btn-gyro').classList.remove('active');
             if (isMobile && state.cam !== 'iso') oControls.enabled = true;
         }
 
         function setupUI() {
             document.getElementById('btn-load-project').onclick = () => loadGLB('model.glb');
-
-            document.getElementById('file-input').onchange = (e) => {
-                if (e.target.files[0]) loadGLB(URL.createObjectURL(e.target.files[0]));
-            };
-            document.getElementById('hdr-input').onchange = (e) => {
-                if (e.target.files[0]) loadHDR(URL.createObjectURL(e.target.files[0]));
-            };
+            document.getElementById('file-input').onchange = (e) => { if (e.target.files[0]) loadGLB(URL.createObjectURL(e.target.files[0])); };
             
             document.getElementById('mode-render').onclick = () => toggleMode('render');
             document.getElementById('mode-white').onclick = () => toggleMode('white');
@@ -600,52 +561,26 @@
             };
             
             document.getElementById('btn-gyro').onclick = () => toggleGyro();
+
+            // 상단 툴바의 VR 버튼 클릭 시 실제 WebXR 세션 버튼 트리거
+            document.getElementById('btn-vr').onclick = () => {
+                const realVrBtn = document.getElementById('VRButton');
+                if (realVrBtn) {
+                    if (realVrBtn.innerText.includes('VR NOT SUPPORTED')) {
+                        showToast("VR을 지원하지 않는 환경입니다.\n메타퀘스트 브라우저를 이용하세요.");
+                    } else {
+                        realVrBtn.click();
+                    }
+                }
+            };
+            
             document.getElementById('btn-help').onclick = () => document.getElementById('help-panel').style.display = 'flex';
             document.getElementById('close-help').onclick = () => document.getElementById('help-panel').style.display = 'none';
-            
             document.getElementById('btn-capture').onclick = () => {
                 renderer.render(scene, activeCamera);
                 const dataURL = renderer.domElement.toDataURL('image/png');
-                const link = document.createElement('a'); link.download = 'Explorer_Capture.png'; link.href = dataURL; link.click();
+                const link = document.createElement('a'); link.download = 'capture.png'; link.href = dataURL; link.click();
                 showToast("스크린샷 저장");
-            };
-            
-            document.getElementById('bg-hdri').onclick = (e) => { 
-                state.bg='sky'; if (state.mode === 'render') scene.background = envTexture && envTexture.isTexture ? envTexture : skyColor;
-                e.target.classList.add('active'); document.getElementById('bg-color').classList.remove('active');
-                document.getElementById('bg-color-picker-row').style.display='none'; document.getElementById('hdr-load-row').style.display='flex';
-            };
-            document.getElementById('bg-color').onclick = (e) => { 
-                state.bg='color'; if (state.mode === 'render') scene.background = bgColor;
-                document.getElementById('bg-color-picker-row').style.display='flex'; document.getElementById('hdr-load-row').style.display='none';
-                e.target.classList.add('active'); document.getElementById('bg-hdri').classList.remove('active');
-            };
-            document.getElementById('bg-color-val').oninput = (e) => { 
-                bgColor.set(e.target.value); if (state.mode === 'render' && state.bg === 'color') scene.background = bgColor; 
-            };
-            
-            document.getElementById('sun-intensity').oninput = (e) => sunLight.intensity = parseFloat(e.target.value);
-            document.getElementById('sun-angle').oninput = (e) => {
-                const rad = e.target.value * (Math.PI/180);
-                sunLight.position.x = Math.sin(rad) * 40; sunLight.position.z = Math.cos(rad) * 40;
-            };
-            
-            document.getElementById('cut-toggle').onclick = (e) => { 
-                state.cutEnabled = !state.cutEnabled; renderer.localClippingEnabled = state.cutEnabled; e.target.classList.toggle('active'); 
-            };
-            
-            const setAxis = (ax) => { clipAxis = ax; ['axis-x', 'axis-y', 'axis-z'].forEach(id => document.getElementById(id).classList.toggle('active', id === `axis-${ax}`)); updateClipPlane(document.getElementById('cut-slider').value); };
-            document.getElementById('axis-x').onclick = () => setAxis('x');
-            document.getElementById('axis-y').onclick = () => setAxis('y');
-            document.getElementById('axis-z').onclick = () => setAxis('z');
-            document.getElementById('axis-flip').onclick = () => { clipNegate = !clipNegate; updateClipPlane(document.getElementById('cut-slider').value); };
-            document.getElementById('cut-slider').oninput = (e) => updateClipPlane(e.target.value);
-            document.getElementById('cut-color').oninput = (e) => {
-                const newColorStr = e.target.value;
-                cutLineColor.set(newColorStr);
-                if(model && state.mode === 'render') {
-                    model.traverse(c => { c.children.forEach(ch => { if(ch.userData.isEdge) ch.material.color.copy(cutLineColor); }); });
-                }
             };
         }
 
@@ -655,12 +590,7 @@
                 const toggle = panel.querySelector('.toggle-btn');
                 if(toggle) toggle.onclick = (e) => { e.stopPropagation(); panel.classList.toggle('minimized'); toggle.innerText = panel.classList.contains('minimized') ? '＋' : '－'; };
                 let isDragging = false, startX, startY, initLeft, initTop;
-                header.onmousedown = (e) => {
-                    isDragging = true; startX = e.clientX; startY = e.clientY;
-                    initLeft = panel.offsetLeft; initTop = panel.offsetTop;
-                    document.onmousemove = (e) => { if(!isDragging) return; panel.style.left = (initLeft + e.clientX - startX) + 'px'; panel.style.top = (initTop + e.clientY - startY) + 'px'; };
-                    document.onmouseup = () => { isDragging = false; document.onmousemove = null; };
-                };
+                header.onmousedown = (e) => { isDragging = true; startX = e.clientX; startY = e.clientY; initLeft = panel.offsetLeft; initTop = panel.offsetTop; document.onmousemove = (e) => { if(!isDragging) return; panel.style.left = (initLeft + e.clientX - startX) + 'px'; panel.style.top = (initTop + e.clientY - startY) + 'px'; }; document.onmouseup = () => { isDragging = false; document.onmousemove = null; }; };
             });
         }
 
