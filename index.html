@@ -80,7 +80,7 @@
         .row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; gap: 10px; }
         .label { font-weight: 600; color: #444; }
 
-        /* 상단 툴바 */
+        /* 상단 툴바 (스크롤 가능) */
         #top-bar { 
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%); 
             display: flex; gap: 6px; padding: 8px; background: var(--bg-light);
@@ -118,7 +118,6 @@
         }
         #mobile-menu-btn { display: none; width:44px; height:44px; border-radius:12px; font-size:18px; position: absolute; top: 20px; right: 20px; z-index: 101; }
 
-        #btn-ar { display: none; color: #FF2D55; border-color: #FF2D55; }
         #btn-gyro.active { background: #5856D6; border-color: #5856D6; color: white; }
 
         @media (max-width: 768px) {
@@ -160,7 +159,6 @@
             <span style="width:1px; height:16px; background:#ddd; margin:auto 4px; flex-shrink:0;"></span>
             <button id="btn-reset">RESET</button>
             <button id="btn-gyro">GYRO</button>
-            <button id="btn-ar">AR VIEW</button>
             <button id="btn-help">GUIDE</button>
             <button id="btn-capture" style="color:var(--primary)">CAPTURE</button>
         </div>
@@ -268,9 +266,12 @@
         let speedMult = 1;
         const raycaster = new THREE.Raycaster();
 
-        // 자이로용 변수들
-        let gyroQuaternion = new THREE.Quaternion();
-        const baseQuaternion = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // 기기 보정
+        // 자이로 조작을 위한 변수들
+        let gyroObject = new THREE.Object3D();
+        let deviceEuler = new THREE.Euler();
+        let deviceQuaternion = new THREE.Quaternion();
+        const screenQuaternion = new THREE.Quaternion();
+        const worldQuaternion = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
 
         init();
         animate();
@@ -288,7 +289,6 @@
             renderer.localClippingEnabled = true; 
             renderer.toneMapping = THREE.ReinhardToneMapping;
             renderer.toneMappingExposure = 1.3;
-            renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
 
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -442,23 +442,31 @@
                 }
             });
             
-            // 자이로 이벤트 핸들러
+            // 자이로 센서 데이터 업데이트
             window.addEventListener('deviceorientation', (e) => {
                 if (!state.gyro) return;
-                const alpha = e.alpha ? THREE.MathUtils.degToRad(e.alpha) : 0;
-                const beta = e.beta ? THREE.MathUtils.degToRad(e.beta) : 0;
-                const gamma = e.gamma ? THREE.MathUtils.degToRad(e.gamma) : 0;
                 
-                const euler = new THREE.Euler(beta, alpha, -gamma, 'YXZ');
-                gyroQuaternion.setFromEuler(euler);
-                perspCamera.quaternion.copy(baseQuaternion).multiply(gyroQuaternion);
+                // 센서 값 (도 단위)
+                const alpha = e.alpha ? THREE.MathUtils.degToRad(e.alpha) : 0; // Z축 (나침반)
+                const beta = e.beta ? THREE.MathUtils.degToRad(e.beta) : 0;   // X축 (앞뒤)
+                const gamma = e.gamma ? THREE.MathUtils.degToRad(e.gamma) : 0; // Y축 (좌우)
+                const orient = window.orientation ? THREE.MathUtils.degToRad(window.orientation) : 0;
+
+                deviceEuler.set(beta, alpha, -gamma, 'YXZ');
+                deviceQuaternion.setFromEuler(deviceEuler);
+                
+                // 화면 회전에 따른 보정
+                screenQuaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -orient);
+                
+                // 최종 카메라 방향 결정
+                perspCamera.quaternion.copy(worldQuaternion);
+                perspCamera.quaternion.multiply(deviceQuaternion);
+                perspCamera.quaternion.multiply(screenQuaternion);
             });
 
             if(!isMobile) {
                 document.addEventListener('click', (e) => {
                     if(e.target.closest('button') || e.target.closest('input') || e.target.closest('.panel')) return;
-                    
-                    // Pointer Lock 보안 예외 처리
                     if(state.cam !== 'iso' && !pControls.isLocked && !state.gyro && !document.pointerLockElement) {
                         try {
                             const promise = pControls.lock();
@@ -469,13 +477,10 @@
                                     }
                                 });
                             }
-                        } catch (err) {
-                            // 동기적 에러 발생 시 무시
-                        }
+                        } catch (err) { }
                     }
                 });
 
-                // Pointer Lock 에러 전역 핸들러
                 document.addEventListener('pointerlockerror', () => {
                     console.warn("Pointer Lock Error: 브라우저 환경에 의해 마우스 잠금이 제한되었습니다.");
                     showToast("Camera lock restricted.");
@@ -500,12 +505,10 @@
             });
             
             const isIso = mode === 'iso';
-            const isWalk = mode === 'walk';
             document.getElementById('crosshair').style.display = isIso ? 'none' : 'block';
             
             if(isMobile) {
                 document.getElementById('mobile-dpad').classList.toggle('active', !isIso);
-                document.getElementById('btn-ar').style.display = isWalk ? 'inline-block' : 'none';
             }
             
             if(isIso) {
@@ -563,24 +566,14 @@
             document.getElementById('cam-iso').onclick = () => switchCam('iso');
             
             document.getElementById('btn-reset').onclick = () => {
-                perspCamera.position.copy(initialCamPos); perspCamera.rotation.copy(initialCamRot);
-                oControls.target.set(0, 0, 0); velocity.set(0,0,0); showToast("카메라 리셋");
+                perspCamera.position.copy(initialCamPos); 
+                perspCamera.rotation.copy(initialCamRot);
+                oControls.target.set(0, 0, 0); 
+                velocity.set(0,0,0); 
+                showToast("카메라 리셋");
             };
             
             document.getElementById('btn-gyro').onclick = () => toggleGyro();
-            
-            document.getElementById('btn-ar').onclick = () => {
-                if (!navigator.xr) { showToast("AR 미지원 브라우저입니다."); return; }
-                navigator.xr.isSessionSupported('immersive-ar').then(supported => {
-                    if (supported) {
-                        renderer.xr.setReferenceSpaceType('local');
-                        navigator.xr.requestSession('immersive-ar', { 
-                            optionalFeatures: ['local-floor', 'dom-overlay'], 
-                            domOverlay: { root: document.body } 
-                        }).then(s => renderer.xr.setSession(s)).catch(() => showToast("AR 세션 시작 실패"));
-                    } else { showToast("AR을 사용할 수 없습니다."); }
-                });
-            };
             
             document.getElementById('btn-help').onclick = () => document.getElementById('help-panel').style.display = 'flex';
             document.getElementById('close-help').onclick = () => document.getElementById('help-panel').style.display = 'none';
@@ -595,9 +588,11 @@
             document.getElementById('bg-hdri').onclick = (e) => { 
                 state.bg='sky'; if (state.mode === 'render') scene.background = envTexture && envTexture.isTexture ? envTexture : skyColor;
                 e.target.classList.add('active'); document.getElementById('bg-color').classList.remove('active');
+                document.getElementById('bg-color-picker-row').style.display='none'; document.getElementById('hdr-load-row').style.display='flex';
             };
             document.getElementById('bg-color').onclick = (e) => { 
                 state.bg='color'; if (state.mode === 'render') scene.background = bgColor;
+                document.getElementById('bg-color-picker-row').style.display='flex'; document.getElementById('hdr-load-row').style.display='none';
                 e.target.classList.add('active'); document.getElementById('bg-hdri').classList.remove('active');
             };
             document.getElementById('bg-color-val').oninput = (e) => { 
