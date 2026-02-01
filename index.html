@@ -215,7 +215,6 @@
                     </div>
                     <div id="hdr-upload-row" style="display:none;" class="row">
                         <button id="btn-upload-hdr-manual" style="width:100%; background:rgba(0,0,0,0.05); padding:8px; font-size:10px; border-radius:8px;">UPLOAD HDR</button>
-                        <!-- input을 display:none 대신 투명화하여 z-index로 관리 (PC 브라우저 클릭 안정성 확보) -->
                         <input type="file" id="hdr-input" accept=".hdr,.exr" style="position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;">
                     </div>
                     <div class="row">
@@ -436,7 +435,9 @@
                 slider.min = -modelMaxDim; slider.max = modelMaxDim; slider.value = modelMaxDim;
                 updateClipPlane(slider.value);
             }
-            const camDist = modelMaxDim * 1.5;
+            
+            // [수정] 모델 크기에 맞춰 카메라 위치 설정 (기존 1.5배에서 0.8배로 근접하게 수정)
+            const camDist = modelMaxDim * 0.8;
             perspCamera.position.set(camDist, camDist, camDist);
             oControls.target.set(0,0,0);
             oControls.update();
@@ -569,7 +570,9 @@
 
             document.getElementById('btn-reset').addEventListener('click', () => {
                 cameraRig.position.set(0, 0, 0); cameraRig.rotation.set(0,0,0);
-                perspCamera.position.set(modelMaxDim*1.5, modelMaxDim*1.5, modelMaxDim*1.5);
+                // [수정] 리셋 시에도 0.8배 거리로 근접하게 설정
+                const camDist = modelMaxDim * 0.8;
+                perspCamera.position.set(camDist, camDist, camDist);
                 perspCamera.quaternion.set(0,0,0,1); oControls.target.set(0,0,0); oControls.update();
             });
             document.getElementById('btn-vr').addEventListener('click', () => {
@@ -584,7 +587,6 @@
             const bindClick = (id, fn) => { const el = document.getElementById(id); if(el) el.addEventListener('click', fn); };
             bindClick('bg-sky', () => setBG('sky')); bindClick('bg-solid', () => setBG('solid')); bindClick('bg-hdr', () => setBG('hdr'));
             
-            // HDR 업로드 수정본
             const hdrInput = document.getElementById('hdr-input');
             const hdrBtn = document.getElementById('btn-upload-hdr-manual');
             if (hdrBtn) {
@@ -640,7 +642,6 @@
                     const lookDir = new THREE.Vector3();
                     perspCamera.getWorldDirection(lookDir);
                     lookDir.y = 0; lookDir.normalize();
-                    // VR 회전 및 앞뒤 이동
                     if (Math.abs(axes[3]) > 0.1) cameraRig.position.addScaledVector(lookDir, -axes[3] * moveSpeed);
                     if (Math.abs(axes[2]) > 0.1) cameraRig.rotation.y -= axes[2] * rotateSpeed;
                     if (buttons[5].pressed) { cameraRig.position.set(0, 0, 0); cameraRig.rotation.set(0, 0, 0); }
