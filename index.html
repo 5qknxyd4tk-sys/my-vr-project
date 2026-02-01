@@ -46,7 +46,23 @@
         .upload-card svg { width: 40px; height: 40px; margin-bottom: 20px; color: var(--brand-color); }
         .upload-card h3 { margin: 0; font-size: 16px; font-weight: 700; }
         
-        #loading-status { display: none; color: var(--brand-color); font-weight: 700; font-size: 14px; margin-top: 20px; }
+        /* Progress Bar UI */
+        #loading-status { 
+            display: none; 
+            width: 300px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading-text {
+            color: var(--brand-color); font-weight: 700; font-size: 13px; margin-bottom: 12px;
+            letter-spacing: 0.1em;
+        }
+        .progress-container {
+            width: 100%; height: 4px; background: rgba(0,0,0,0.05); border-radius: 2px; overflow: hidden;
+        }
+        #progress-bar {
+            width: 0%; height: 100%; background: var(--brand-color); transition: width 0.3s ease;
+        }
 
         /* UI Layer */
         #ui-layer { display: none; }
@@ -72,7 +88,7 @@
         button.active svg { filter: brightness(0) invert(1); opacity: 1; }
         .divider { width: 1px; height: 14px; background: rgba(0,0,0,0.1); margin: 0 4px; flex-shrink: 0; }
 
-        /* Mobile Controls - Gyro Toggle & Joystick */
+        /* Mobile Controls */
         #gyro-toggle-btn {
             position: absolute; bottom: 30px; right: 30px;
             width: 56px; height: 56px; border-radius: 28px;
@@ -168,7 +184,13 @@
             </div>
             <input type="file" id="file-input" accept=".glb,.gltf" style="display:none;">
         </div>
-        <div id="loading-status">INITIALIZING SCENE...</div>
+        
+        <div id="loading-status">
+            <div class="loading-text">INITIALIZING ASSETS...</div>
+            <div class="progress-container">
+                <div id="progress-bar"></div>
+            </div>
+        </div>
     </div>
     
     <div id="ui-layer">
@@ -343,20 +365,18 @@
             oControls.enabled = isMobile;
 
             pControls = new PointerLockControls(perspCamera, document.body);
+            
             pControls.addEventListener('unlock', () => {
                 document.getElementById('crosshair').style.display = 'none';
-                if (!isMobile) {
-                    oControls.enabled = false;
-                    const dir = new THREE.Vector3();
-                    perspCamera.getWorldDirection(dir);
-                    oControls.target.copy(perspCamera.position).addScaledVector(dir, 10);
-                    oControls.update();
+                if (!isMobile && state.cam !== 'iso') {
+                    oControls.enabled = false; 
                 }
             });
+            
             pControls.addEventListener('lock', () => {
                 if (!isMobile) {
                     document.getElementById('crosshair').style.display = 'block';
-                    oControls.enabled = false;
+                    oControls.enabled = false; 
                 }
             });
 
@@ -391,17 +411,27 @@
 
         function loadGLB(url) {
             const loadingStatus = document.getElementById('loading-status');
+            const progressBar = document.getElementById('progress-bar');
+            
             if(loadingStatus) {
                 loadingStatus.style.display = 'block';
-                loadingStatus.innerText = "모델 불러오는 중...";
+                progressBar.style.width = '0%';
             }
+            
             const loader = new GLTFLoader();
             loader.load(url, (gltf) => {
-                document.getElementById('landing-page').style.display = 'none';
-                document.getElementById('ui-layer').style.display = 'block';
-                onModelLoaded(gltf);
+                // 완성 시 바를 가득 채움
+                progressBar.style.width = '100%';
+                setTimeout(() => {
+                    document.getElementById('landing-page').style.display = 'none';
+                    document.getElementById('ui-layer').style.display = 'block';
+                    onModelLoaded(gltf);
+                }, 300);
             }, (xhr) => {
-                if(loadingStatus) loadingStatus.innerText = `진행도: ${(xhr.loaded/xhr.total*100).toFixed(0)}%`;
+                if(xhr.lengthComputable) {
+                    const percent = (xhr.loaded / xhr.total) * 100;
+                    if(progressBar) progressBar.style.width = percent + '%';
+                }
             }, (err) => {
                 showToast("모델 로드 실패.");
                 if(loadingStatus) loadingStatus.style.display = 'none';
@@ -436,7 +466,6 @@
                 updateClipPlane(slider.value);
             }
             
-            // [수정] 모델 크기에 맞춰 카메라 위치 설정 (기존 1.5배에서 0.8배로 근접하게 수정)
             const camDist = modelMaxDim * 0.8;
             perspCamera.position.set(camDist, camDist, camDist);
             oControls.target.set(0,0,0);
@@ -468,7 +497,8 @@
                 activeCamera = orthoCamera; oControls.object = orthoCamera; oControls.enabled = true; 
                 if(document.pointerLockElement) document.exitPointerLock();
             } else { 
-                activeCamera = perspCamera; oControls.object = perspCamera; oControls.enabled = isMobile;
+                activeCamera = perspCamera; oControls.object = perspCamera; 
+                oControls.enabled = isMobile; 
             }
         }
 
@@ -570,7 +600,6 @@
 
             document.getElementById('btn-reset').addEventListener('click', () => {
                 cameraRig.position.set(0, 0, 0); cameraRig.rotation.set(0,0,0);
-                // [수정] 리셋 시에도 0.8배 거리로 근접하게 설정
                 const camDist = modelMaxDim * 0.8;
                 perspCamera.position.set(camDist, camDist, camDist);
                 perspCamera.quaternion.set(0,0,0,1); oControls.target.set(0,0,0); oControls.update();
@@ -601,6 +630,8 @@
                         t.mapping = THREE.EquirectangularReflectionMapping;
                         scene.background = t; scene.environment = t;
                         showToast("HDR 적용됨");
+                    }, undefined, (err) => {
+                        showToast("올바른 HDR 형식이 아닙니다.");
                     });
                 }
             });
@@ -673,26 +704,37 @@
                 } else {
                     if (isGyroActive && isMobile) {
                         updateGyroRotation();
-                    } else if (state.cam === 'iso' || isMobile || !document.pointerLockElement) {
+                    } else if (state.cam === 'iso' || isMobile) {
                         oControls.update();
                     }
+                    
                     const delta = 0.016;
-                    const speed = (state.cam === 'walk' ? 12 : 20) * speedMult;
+                    // 기본 속도를 조금 더 빠르게 조정 (기본 15 -> 20)
+                    const baseSpeed = (state.cam === 'walk' ? 12 : 20);
+                    const speed = baseSpeed * speedMult;
+                    
                     const lookDir = new THREE.Vector3(); perspCamera.getWorldDirection(lookDir);
                     const forward = lookDir.clone(); if(state.cam==='walk') forward.y=0; forward.normalize();
                     const right = new THREE.Vector3().crossVectors(forward, perspCamera.up).normalize();
+                    
                     const moveVec = new THREE.Vector3();
                     if(move.f) moveVec.addScaledVector(forward, speed*delta); 
                     if(move.b) moveVec.addScaledVector(forward, -speed*delta);
                     if(move.l) moveVec.addScaledVector(right, -speed*delta); 
                     if(move.r) moveVec.addScaledVector(right, speed*delta);
+                    
+                    if(state.cam === 'fly') {
+                        if(move.u) moveVec.y += speed * delta;
+                        if(move.d) moveVec.y -= speed * delta;
+                    }
+
                     if (isMobile && joystick.active) {
                         moveVec.addScaledVector(forward, -joystick.vector.y * speed * delta);
                         moveVec.addScaledVector(right, joystick.vector.x * speed * delta);
                     }
+
                     if (moveVec.length() > 0) {
                         if(state.cam === 'fly') {
-                            if(move.u) moveVec.y += speed*delta; if(move.d) moveVec.y -= speed*delta;
                             perspCamera.position.add(moveVec);
                         } else if (state.cam === 'walk') {
                             perspCamera.position.x += moveVec.x; perspCamera.position.z += moveVec.z;
@@ -744,9 +786,56 @@
                 screenOrientation = window.orientation || 0;
             });
             window.addEventListener('orientationchange', () => { screenOrientation = window.orientation || 0; });
-            document.addEventListener('keydown', e => { switch(e.code) { case 'KeyW': move.f=1; break; case 'KeyS': move.b=1; break; case 'KeyA': move.l=1; break; case 'KeyD': move.r=1; break; case 'KeyE': move.u=1; break; case 'KeyQ': move.d=1; break; case 'ShiftLeft': speedMult=2; break; } });
-            document.addEventListener('keyup', e => { switch(e.code) { case 'KeyW': move.f=0; break; case 'KeyS': move.b=0; break; case 'KeyA': move.l=0; break; case 'KeyD': move.r=0; case 'KeyE': move.u=0; break; case 'KeyQ': move.d=0; break; case 'ShiftLeft': speedMult=1; break; } });
-            document.addEventListener('mousedown', (e) => { if(!isMobile && document.getElementById('landing-page').style.display === 'none' && !e.target.closest('button, .panel, input') && state.cam !== 'iso' && !isGyroActive) pControls.lock(); });
+            
+            document.addEventListener('keydown', e => { 
+                switch(e.code) { 
+                    case 'KeyW': move.f=1; break; 
+                    case 'KeyS': move.b=1; break; 
+                    case 'KeyA': move.l=1; break; 
+                    case 'KeyD': move.r=1; break; 
+                    case 'KeyE': move.u=1; break; 
+                    case 'KeyQ': move.d=1; break; 
+                    case 'ShiftLeft': 
+                    case 'ShiftRight': 
+                        // Shift 누르면 4배 속도
+                        speedMult = 4; 
+                        break; 
+                    case 'ControlLeft':
+                    case 'ControlRight':
+                        // Ctrl 누르면 Shift의 2배인 8배 속도
+                        speedMult = 8;
+                        break;
+                } 
+            });
+            
+            document.addEventListener('keyup', e => { 
+                switch(e.code) { 
+                    case 'KeyW': move.f=0; break; 
+                    case 'KeyS': move.b=0; break; 
+                    case 'KeyA': move.l=0; break; 
+                    case 'KeyD': move.r=0; break; 
+                    case 'KeyE': move.u=0; break; 
+                    case 'KeyQ': move.d=0; break; 
+                    case 'ShiftLeft': 
+                    case 'ShiftRight': 
+                    case 'ControlLeft':
+                    case 'ControlRight':
+                        speedMult = 1; 
+                        break; 
+                } 
+            });
+
+            document.addEventListener('mousedown', (e) => { 
+                if(!isMobile && document.getElementById('landing-page').style.display === 'none' 
+                   && !e.target.closest('button, .panel, input') 
+                   && state.cam !== 'iso' && !isGyroActive && !document.pointerLockElement) {
+                    try {
+                        pControls.lock();
+                    } catch(err) {
+                        console.warn("PointerLock failed:", err);
+                    }
+                }
+            });
         }
         function makePanelsDraggable() { document.querySelectorAll('.panel').forEach(p => { const h=p.querySelector('.panel-header'); let isD=false, sx, sy, il, it; h.onmousedown=(e)=>{ isD=true; sx=e.clientX; sy=e.clientY; il=p.offsetLeft; it=p.offsetTop; document.onmousemove=(e)=>{ if(isD) { p.style.left=(il+e.clientX-sx)+'px'; p.style.top=(it+e.clientY-sy)+'px'; } }; document.onmouseup=()=>{ isD=false; document.onmousemove=null; }; }; }); }
         function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.style.opacity=1; setTimeout(()=>t.style.opacity=0, 2000); }
